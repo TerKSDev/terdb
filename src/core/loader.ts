@@ -1,0 +1,112 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
+export interface DBConfig {
+  type: "sqlite" | "postgres" | "mysql" | "unknown";
+  targetUrl: string;
+  source: ".env" | "auto-detected" | "manual";
+}
+
+export async function detectDatabase(): Promise<DBConfig> {
+  const cwd = process.cwd();
+
+  // 1. Scan root and common subdirectories for SQLite files
+  const searchDirs = [".", "prisma", "db", "database", "src/db", "src/database"];
+  for (const dir of searchDirs) {
+    try {
+      const targetDir = path.join(cwd, dir);
+      const files = await fs.readdir(targetDir);
+      const sqliteFile = files.find(
+        (file) =>
+          file.endsWith(".db") ||
+          file.endsWith(".sqlite") ||
+          file.endsWith(".sqlite3"),
+      );
+
+      if (sqliteFile) {
+        return {
+          type: "sqlite",
+          targetUrl: path.join(targetDir, sqliteFile),
+          source: "auto-detected",
+        };
+      }
+    } catch {
+      // Skip folders that don't exist or are inaccessible
+    }
+  }
+
+  // 2. Parse Prisma schema configuration if it exists
+  const prismaSchemaPath = path.join(cwd, "prisma", "schema.prisma");
+  try {
+    const schemaContent = await fs.readFile(prismaSchemaPath, "utf-8");
+    const providerMatch = schemaContent.match(/provider\s*=\s*["']([^"']+)["']/);
+    const urlMatch = schemaContent.match(/url\s*=\s*(?:env\(["']([^"']+)["']\)|["']([^"']+)["'])/);
+
+    if (providerMatch) {
+      let provider = providerMatch[1];
+      if (provider === "postgresql") provider = "postgres";
+
+      let targetUrl = "";
+      if (urlMatch && urlMatch[2]) {
+        targetUrl = urlMatch[2];
+        if (targetUrl.startsWith("file:")) {
+          targetUrl = path.join(cwd, "prisma", targetUrl.replace("file:", ""));
+        }
+      }
+
+      if (targetUrl && (provider === "sqlite" || provider === "postgres" || provider === "mysql")) {
+        return {
+          type: provider as any,
+          targetUrl,
+          source: ".env", // Treats static config as .env source or configuration
+        };
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  // 3. Scan .env for multiple common database connection variable keys
+  const envPath = path.join(cwd, ".env");
+  try {
+    const envContent = await fs.readFile(envPath, "utf-8");
+    const dbKeys = ["DATABASE_URL", "DB_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "MYSQL_URL"];
+
+    for (const key of dbKeys) {
+      const regex = new RegExp(`${key}\\s*=\\s*["']?([^"'\\r\\n]+)["']?`);
+      const match = envContent.match(regex);
+
+      if (match) {
+        const url = match[1];
+
+        if (url.startsWith("file:") || url.endsWith(".db") || url.includes(".sqlite")) {
+          return {
+            type: "sqlite",
+            targetUrl: url.replace("file:", ""),
+            source: ".env",
+          };
+        } else if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
+          return {
+            type: "postgres",
+            targetUrl: url,
+            source: ".env",
+          };
+        } else if (url.startsWith("mysql://")) {
+          return {
+            type: "mysql",
+            targetUrl: url,
+            source: ".env",
+          };
+        }
+      }
+    }
+  } catch (error) {
+    // .env file doesn't exist or is not readable
+  }
+
+  return {
+    type: "unknown",
+    targetUrl: "",
+    source: "manual",
+  };
+}
