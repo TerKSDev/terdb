@@ -1,5 +1,5 @@
 {
-  "name": "@terks.dev/terdb",
+  "name": "nano-db",
   "version": "1.0.0-beta.1",
   "description": "A lightweight interactive TUI database client",
   "bin": {
