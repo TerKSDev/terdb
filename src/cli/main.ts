@@ -1,12 +1,16 @@
-import { select, Separator } from "@inquirer/prompts";
 import pc from "picocolors";
 import { printLogo, printDashboard } from "./logo.js";
 import { detectDatabase } from "../core/loader.js";
-import { viewTables } from "./viewer.js";
+import { viewTables } from "./editor.js";
+import { runWizard } from "./wizard.js";
+import { runSetup } from "./setup.js";
+import { runSqlWriter } from "./sqlWriter.js";
+import { selectAction } from "./select/action.js";
+import { selectBuild } from "./select/build.js";
 
 export async function main() {
   let running = true;
-  const dbConfig = await detectDatabase();
+  let dbConfig = await detectDatabase();
 
   while (running) {
     console.clear();
@@ -18,49 +22,9 @@ export async function main() {
       ),
     );
 
-    const choice = await select({
-      message: "Please select an action:",
-      theme: {
-        prefix: pc.cyan("?"),
-        icon: {
-          cursor: pc.cyan("❯ "),
-        },
-        style: {
-          message: (text: string) => pc.bold(pc.white(text)),
-          highlight: (text: string) => {
-            const clean = text.replace(/\x1b\[[0-9;]*m/g, "");
-            return clean.includes("Exit") ? pc.red(clean) : pc.cyan(clean);
-          },
-        },
-      },
-      choices: [
-        {
-          name: "Database Editor",
-          value: "editor",
-          description: "View, add, edit, delete data from the database.",
-        },
-        {
-          name: "Table Builder",
-          value: "create",
-          description:
-            "Create a new database table via interactive step-by-step wizard.",
-        },
-        {
-          name: "Check Connection",
-          value: "check",
-          description:
-            "Scan local directories and .env files for database configurations.",
-        },
-        new Separator(),
-        {
-          name: pc.dim("Exit"),
-          value: "exit",
-          description: "Exit the TerDB CLI application.",
-        },
-      ],
-    });
+    const action = await selectAction(dbConfig);
 
-    switch (choice) {
+    switch (action) {
       case "editor":
         if (dbConfig.type === "unknown") {
           console.log(
@@ -73,17 +37,35 @@ export async function main() {
           await viewTables(dbConfig);
         }
         break;
-      case "create":
-        console.log(pc.yellow("\n[建立資料表] 功能開發中... (按 Enter 繼續)"));
-        await waitForEnter();
+      case "build":
+        const buildMethod = await selectBuild(dbConfig);
+        switch (buildMethod) {
+          case "wizard":
+            if (dbConfig.type === "unknown") {
+              console.log(
+                pc.yellow(
+                  `\nNo database connection found. Please setup first.`,
+                ),
+              );
+            } else {
+              await runWizard(dbConfig);
+            }
+            break;
+          case "sql":
+            await runSqlWriter(dbConfig);
+            break;
+          case "back":
+            break;
+        }
         break;
-      case "check":
-        console.log(pc.green("\n正在掃描當前目錄的 .env 檔案..."));
+      case "setup":
+      case "re-configure":
+        dbConfig = await runSetup(dbConfig);
         await waitForEnter();
         break;
       case "exit":
         running = false;
-        console.log(pc.dim("\n感謝使用 terdb，再見！"));
+        console.log(pc.dim("\nThanks for using TerDB. Goodbye!"));
         break;
     }
   }

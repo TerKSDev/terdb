@@ -32,7 +32,7 @@ export function printLogo() {
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const terminalWidth = 74;
-  const headerTitle = " Lightweight Interactive TUI Database Client  •  v0.0.1 (Beta) ";
+  const headerTitle = " Lightweight Interactive TUI Database Client  •  v1.0.0-beta.1 ";
   const dashes = "═".repeat(terminalWidth - 2);
   console.log(pc.cyan(`\n╔${dashes}╗`));
   const spacesNeeded = terminalWidth - 2 - headerTitle.length;

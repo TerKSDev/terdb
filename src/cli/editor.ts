@@ -1,6 +1,8 @@
 import { select, Separator } from "@inquirer/prompts";
 import pc from "picocolors";
-import { getTable, getData } from "../core/client.js";
+import { createDBAdapter } from "../core/factory.js";
+import { selectTable } from "./select/table.js";
+import { runBeginnerAdd, runBeginnerEdit, runBeginnerDelete, runExpertMode } from "./dataOps.js";
 
 interface DBConfigProps {
   type: "sqlite" | "postgres" | "mysql" | "unknown";
@@ -9,6 +11,7 @@ interface DBConfigProps {
 }
 
 export async function viewTables(dbConfig: DBConfigProps) {
+  const adapter = createDBAdapter(dbConfig as any);
   let viewing = true;
 
   while (viewing) {
@@ -17,7 +20,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
     let tables: string[] = [];
     let tablesCount = "Scanning...";
     try {
-      tables = await getTable(dbConfig.targetUrl);
+      tables = await adapter.getTables();
       tablesCount = `${tables.length} tables detected`;
     } catch (e: any) {
       tablesCount = `Error: ${e.message}`;
@@ -75,6 +78,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
       if (tables.length === 0) {
         console.log(pc.yellow("No tables found in this database."));
         await waitForEnter();
+        await adapter.close();
         return;
       }
 
@@ -90,23 +94,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
         },
       ];
 
-      const selectedTable = await select({
-        message: "Select a table to edit data:",
-        theme: {
-          prefix: pc.cyan("?"),
-          icon: {
-            cursor: pc.cyan("❯ "),
-          },
-          style: {
-            message: (text: string) => pc.bold(pc.white(text)),
-            highlight: (text: string) => {
-              const clean = text.replace(/\x1b\[[0-9;]*m/g, "");
-              return clean.includes("Go Back") ? pc.red(clean) : pc.cyan(clean);
-            },
-          },
-        },
-        choices: tableChoices,
-      });
+      const selectedTable = await selectTable(tableChoices);
 
       if (selectedTable === "BACK") {
         viewing = false;
@@ -114,18 +102,22 @@ export async function viewTables(dbConfig: DBConfigProps) {
       }
 
       let tableLoop = true;
+      let currentPage = 1;
+      const limit = 50;
+      
       while (tableLoop) {
-        const data = await getData(dbConfig.targetUrl, selectedTable);
-
-        console.clear();
-        const columns = data.columns;
+        const offset = (currentPage - 1) * limit;
+        const schema = await adapter.getSchema(selectedTable);
+        const colNames = schema.map(c => c.name);
+        
+        const data = await adapter.getData(selectedTable, limit, offset);
         const rows = data.rows;
 
         // 1. Calculate column widths with MAX_COL_WIDTH cap of 30 characters
         const MAX_COL_WIDTH = 30;
         const colWidths: Record<string, number> = {};
         let totalMinWidth = 0;
-        for (const col of columns) {
+        for (const col of colNames) {
           let maxValLength = col.length;
           for (const row of rows) {
             const valStr = String((row as any)[col] ?? "");
@@ -142,14 +134,14 @@ export async function viewTables(dbConfig: DBConfigProps) {
         }
 
         // 2. Calculate dynamic terminalWidth (minimum 74 characters)
-        const dividerWidths = 3 * (columns.length - 1);
+        const dividerWidths = 3 * (colNames.length - 1);
         const dynamicWidth = totalMinWidth + dividerWidths + 4;
         const currentTerminalWidth = Math.max(74, dynamicWidth);
         const availableTextWidth = currentTerminalWidth - 4 - dividerWidths;
 
         // Distribute remaining spaces to the last column
-        if (totalMinWidth < availableTextWidth && columns.length > 0) {
-          const lastCol = columns[columns.length - 1];
+        if (totalMinWidth < availableTextWidth && colNames.length > 0) {
+          const lastCol = colNames[colNames.length - 1];
           colWidths[lastCol] += availableTextWidth - totalMinWidth;
         }
 
@@ -162,7 +154,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
         };
 
         // 3. Draw outer Box Header with TableName (rows count)
-        const detailHeaderTitle = ` ${selectedTable} (${rows.length} rows) `;
+        const detailHeaderTitle = ` ${selectedTable} (Page ${currentPage}) `;
         const detailDashes = "═".repeat(currentTerminalWidth - 2);
         console.log(pc.cyan(`\n╔${detailDashes}╗`));
         const detailSpacesNeeded =
@@ -180,18 +172,18 @@ export async function viewTables(dbConfig: DBConfigProps) {
         console.log(pc.cyan(`╠${"═".repeat(currentTerminalWidth - 2)}╣`));
 
         // 4. Draw Table Column Headers inside outer borders
-        const headerRow = columns
-          .map((col) => truncate(col, colWidths[col]).padEnd(colWidths[col]))
-          .join(" │ ");
+        const headerRow = colNames
+          .map((col) => pc.bold(pc.white(truncate(col, colWidths[col]).padEnd(colWidths[col]))))
+          .join(pc.cyan(" ║ "));
         console.log(
-          pc.cyan("║ ") + pc.bold(pc.white(headerRow)) + pc.cyan(" ║"),
+          pc.cyan("║ ") + headerRow + pc.cyan(" ║"),
         );
         console.log(pc.cyan(`╠${"═".repeat(currentTerminalWidth - 2)}╣`));
 
         // 5. Draw Table Data Rows inside outer borders
         if (rows.length === 0) {
           const emptyMsg = "No records found";
-          const emptySpaces = availableTextWidth - emptyMsg.length;
+          const emptySpaces = currentTerminalWidth - 4 - emptyMsg.length;
           const leftPad = Math.max(0, Math.floor(emptySpaces / 2));
           const rightPad = Math.max(0, emptySpaces - leftPad);
           console.log(
@@ -203,20 +195,32 @@ export async function viewTables(dbConfig: DBConfigProps) {
           );
         } else {
           for (const row of rows) {
-            const rowContent = columns
+            const rowContent = colNames
               .map((col) =>
-                truncate(
+                pc.white(truncate(
                   String((row as any)[col] ?? ""),
                   colWidths[col],
-                ).padEnd(colWidths[col]),
+                ).padEnd(colWidths[col])),
               )
-              .join(pc.cyan(" │ "));
+              .join(pc.cyan(" ║ "));
             console.log(pc.cyan("║ ") + rowContent + pc.cyan(" ║"));
           }
         }
 
         console.log(pc.cyan(`╚${"═".repeat(currentTerminalWidth - 2)}╝`));
         console.log();
+
+        const hasNextPage = rows.length === limit;
+        const hasPrevPage = currentPage > 1;
+        const actionChoices: any[] = [
+          { name: "Add Data", value: "add" },
+          { name: "Edit Data", value: "edit" },
+          { name: "Delete Data", value: "delete" },
+          new Separator(),
+        ];
+        if (hasPrevPage) actionChoices.push({ name: "Previous Page", value: "prev" });
+        if (hasNextPage) actionChoices.push({ name: "Next Page", value: "next" });
+        actionChoices.push({ name: pc.dim("Go Back"), value: "BACK" });
 
         const action = await select({
           message: "Select an action for this table:",
@@ -235,38 +239,51 @@ export async function viewTables(dbConfig: DBConfigProps) {
               },
             },
           },
-          choices: [
-            { name: "Add Data", value: "add" },
-            { name: "Edit Data", value: "edit" },
-            { name: "Delete Data", value: "delete" },
-            new Separator(),
-            { name: pc.dim("Go Back"), value: "BACK" },
-          ],
+          choices: actionChoices,
         });
+
+        if (action === "prev") {
+          currentPage--;
+          continue;
+        }
+        if (action === "next") {
+          currentPage++;
+          continue;
+        }
 
         if (action === "BACK") {
           tableLoop = false;
           continue;
         }
 
+        const mode = await select({
+          message: `Select mode for ${action} data:`,
+          choices: [
+            { name: "Beginner (Interactive Step-by-Step)", value: "beginner" },
+            { name: "Expert (Load SQL from .sql or .md file)", value: "expert" },
+            new Separator(),
+            { name: pc.dim("Cancel"), value: "cancel" },
+          ]
+        });
+
+        if (mode === "cancel") {
+          continue;
+        }
+
+        if (mode === "expert") {
+          await runExpertMode(adapter);
+          await waitForEnter();
+          continue;
+        }
+
         if (action === "add") {
-          console.log(
-            pc.green(
-              "\n[Add Data] Simulated successful addition! (Mock Action)",
-            ),
-          );
+          await runBeginnerAdd(adapter, dbConfig.type, selectedTable, schema);
           await waitForEnter();
         } else if (action === "edit") {
-          console.log(
-            pc.green("\n[Edit Data] Simulated successful update! (Mock Action)"),
-          );
+          await runBeginnerEdit(adapter, dbConfig.type, selectedTable, schema);
           await waitForEnter();
         } else if (action === "delete") {
-          console.log(
-            pc.red(
-              "\n[Delete Data] Simulated successful deletion! (Mock Action)",
-            ),
-          );
+          await runBeginnerDelete(adapter, dbConfig.type, selectedTable, schema);
           await waitForEnter();
         }
       }
@@ -276,6 +293,8 @@ export async function viewTables(dbConfig: DBConfigProps) {
       viewing = false;
     }
   }
+
+  await adapter.close();
 }
 
 async function waitForEnter() {

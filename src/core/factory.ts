@@ -1,5 +1,4 @@
-import { DBConfig } from "./loader.js";
-import { DBAdapter } from "./types.js";
+import { DBAdapter, DBConfig } from "./types.js";
 import { SqliteAdapter } from "../adapters/sqlite.js";
 import { PostgresAdapter } from "../adapters/postgres.js";
 import { MysqlAdapter } from "../adapters/mysql.js";

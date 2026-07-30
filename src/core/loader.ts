@@ -1,17 +1,38 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { DBConfig } from "./types.js";
 
-export interface DBConfig {
-  type: "sqlite" | "postgres" | "mysql" | "unknown";
-  targetUrl: string;
-  source: ".env" | "auto-detected" | "manual";
-}
-
-export async function detectDatabase(): Promise<DBConfig> {
+export async function detectDatabase(databaseUrl?: string): Promise<DBConfig> {
   const cwd = process.cwd();
 
+  if (databaseUrl) {
+    let type: "sqlite" | "postgres" | "mysql" | "unknown" = "sqlite";
+    if (
+      databaseUrl.startsWith("postgres://") ||
+      databaseUrl.startsWith("postgresql://")
+    ) {
+      type = "postgres";
+    } else if (databaseUrl.startsWith("mysql://")) {
+      type = "mysql";
+    } else {
+      type = "sqlite";
+    }
+
+    return {
+      type,
+      targetUrl: databaseUrl.replace("file:", ""),
+      source: "manual",
+    };
+  }
   // 1. Scan root and common subdirectories for SQLite files
-  const searchDirs = [".", "prisma", "db", "database", "src/db", "src/database"];
+  const searchDirs = [
+    ".",
+    "prisma",
+    "db",
+    "database",
+    "src/db",
+    "src/database",
+  ];
   for (const dir of searchDirs) {
     try {
       const targetDir = path.join(cwd, dir);
@@ -39,8 +60,12 @@ export async function detectDatabase(): Promise<DBConfig> {
   const prismaSchemaPath = path.join(cwd, "prisma", "schema.prisma");
   try {
     const schemaContent = await fs.readFile(prismaSchemaPath, "utf-8");
-    const providerMatch = schemaContent.match(/provider\s*=\s*["']([^"']+)["']/);
-    const urlMatch = schemaContent.match(/url\s*=\s*(?:env\(["']([^"']+)["']\)|["']([^"']+)["'])/);
+    const providerMatch = schemaContent.match(
+      /provider\s*=\s*["']([^"']+)["']/,
+    );
+    const urlMatch = schemaContent.match(
+      /url\s*=\s*(?:env\(["']([^"']+)["']\)|["']([^"']+)["'])/,
+    );
 
     if (providerMatch) {
       let provider = providerMatch[1];
@@ -54,7 +79,12 @@ export async function detectDatabase(): Promise<DBConfig> {
         }
       }
 
-      if (targetUrl && (provider === "sqlite" || provider === "postgres" || provider === "mysql")) {
+      if (
+        targetUrl &&
+        (provider === "sqlite" ||
+          provider === "postgres" ||
+          provider === "mysql")
+      ) {
         return {
           type: provider as any,
           targetUrl,
@@ -70,7 +100,13 @@ export async function detectDatabase(): Promise<DBConfig> {
   const envPath = path.join(cwd, ".env");
   try {
     const envContent = await fs.readFile(envPath, "utf-8");
-    const dbKeys = ["DATABASE_URL", "DB_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "MYSQL_URL"];
+    const dbKeys = [
+      "DATABASE_URL",
+      "DB_URL",
+      "POSTGRES_URL",
+      "POSTGRES_PRISMA_URL",
+      "MYSQL_URL",
+    ];
 
     for (const key of dbKeys) {
       const regex = new RegExp(`${key}\\s*=\\s*["']?([^"'\\r\\n]+)["']?`);
@@ -79,13 +115,20 @@ export async function detectDatabase(): Promise<DBConfig> {
       if (match) {
         const url = match[1];
 
-        if (url.startsWith("file:") || url.endsWith(".db") || url.includes(".sqlite")) {
+        if (
+          url.startsWith("file:") ||
+          url.endsWith(".db") ||
+          url.includes(".sqlite")
+        ) {
           return {
             type: "sqlite",
             targetUrl: url.replace("file:", ""),
             source: ".env",
           };
-        } else if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
+        } else if (
+          url.startsWith("postgres://") ||
+          url.startsWith("postgresql://")
+        ) {
           return {
             type: "postgres",
             targetUrl: url,
@@ -109,4 +152,27 @@ export async function detectDatabase(): Promise<DBConfig> {
     targetUrl: "",
     source: "manual",
   };
+}
+
+export async function saveDatabaseUrl(url: string): Promise<void> {
+  const envPath = path.join(process.cwd(), ".env");
+  let envContent = "";
+  try {
+    envContent = await fs.readFile(envPath, "utf-8");
+  } catch (e) {
+    // File doesn't exist, which is fine
+  }
+
+  const regex = /DATABASE_URL\s*=\s*["']?([^"'\r\n]+)["']?/;
+  if (regex.test(envContent)) {
+    envContent = envContent.replace(regex, `DATABASE_URL="${url}"`);
+  } else {
+    // Append to end of file, making sure there is a newline if file is not empty
+    if (envContent && !envContent.endsWith("\n")) {
+      envContent += "\n";
+    }
+    envContent += `DATABASE_URL="${url}"\n`;
+  }
+
+  await fs.writeFile(envPath, envContent, "utf-8");
 }
