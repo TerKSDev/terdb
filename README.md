@@ -28,7 +28,7 @@
 You don't even need to install it. Just run:
 
 ```bash
-npx terdb
+npx @terks.dev/terdb
 ```
 
 TerDB will automatically scan your directory for a `.env` file containing database credentials (`DATABASE_URL`, `DB_URL`, etc.) or `.sqlite`/`.db` files, and connect instantly!
@@ -37,7 +37,7 @@ TerDB will automatically scan your directory for a `.env` file containing databa
 
 If you prefer to set up the connection manually:
 
-1. Run `npx terdb`
+1. Run `npx @terks.dev/terdb`
 2. Select **"Setup Database Connection"**
 3. Choose your database type (SQLite, Postgres, or MySQL)
 4. Enter your connection string (e.g., `postgresql://user:password@localhost:5432/mydb`)
