@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "dev": "tsx bin/cli.ts",
-    "build": "tsup"
+    "build": "tsup",
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "database",
