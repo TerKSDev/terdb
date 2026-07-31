@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { DBConfig, ColumnSchema } from "../src/core/types.js";
+import { DBConfig } from "../src/core/types.js";
 import { createDBAdapter } from "../src/core/factory.js";
 import fs from "fs/promises";
 import path from "path";

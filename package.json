@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "dev": "tsx bin/cli.ts",
-    "build": "tsup",
+    "build:cli": "tsup",
+    "build:studio": "vite build --config studio/vite.config.ts",
+    "build": "pnpm build:cli && pnpm build:studio",
     "prepublishOnly": "pnpm build"
   },
   "keywords": [
@@ -31,11 +33,15 @@
     "tsup": "^8.5.1",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.12",
     "@inquirer/prompts": "^8.5.2",
+    "hono": "^4.12.32",
     "mysql2": "^3.23.2",
+    "open": "^11.0.0",
     "pg": "^8.22.0",
     "picocolors": "^1.1.1"
   }

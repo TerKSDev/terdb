@@ -66,6 +66,9 @@ export async function main() {
       `  ${pc.green("backup")}                Backup the entire database`,
     );
     console.log(
+      `  ${pc.green("studio")}                Launch the Web UI Studio`,
+    );
+    console.log(
       `  ${pc.green("init")} [db_type]        Initialize a local database & .env`,
     );
     console.log(`  ${pc.green("drop-db")} [db_type]     Drop a local database`);
@@ -93,6 +96,13 @@ export async function main() {
     const { runExportCommand } = await import("../../subcommands/export.js");
     const dbConfig = await detectDatabase();
     await runExportCommand(dbConfig, positionals.slice(1), values as any);
+    return;
+  }
+
+  if (command === "studio") {
+    const { runStudio } = await import("../server/index.js");
+    const dbConfig = await detectDatabase();
+    await runStudio(dbConfig);
     return;
   }
 
@@ -146,7 +156,7 @@ export async function main() {
   }
 
   if (command === "drop-db") {
-    const { runDropDbCommand } = await import("../../subcommands/drop-db.js");
+    const { runDropDbCommand } = await import("../../subcommands/drop.js");
     await runDropDbCommand(positionals.slice(1));
     return;
   }

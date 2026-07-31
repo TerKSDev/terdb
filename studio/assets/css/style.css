@@ -1,0 +1,16 @@
+:root {
+  --color-bg: #ffffff;
+  --color-primary: #2c68ec;
+  --color-text: #0f172a;
+  --font-inter: "Inter", sans-serif;
+}
+
+body,
+html {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-inter);
+}
