@@ -110,6 +110,11 @@ export async function runSeedCommand(dbConfig: DBConfig, args: string[]) {
   let inserted = 0;
   
   try {
+    // Disable Foreign Key checks before seeding to allow dummy data
+    if (dbConfig.type === "sqlite") await adapter.executeSql("PRAGMA foreign_keys = OFF;");
+    else if (dbConfig.type === "mysql") await adapter.executeSql("SET FOREIGN_KEY_CHECKS = 0;");
+    else if (dbConfig.type === "postgres") await adapter.executeSql("SET session_replication_role = replica;");
+
     for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
       const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE);
       await adapter.insert(tableName, chunk);
@@ -120,6 +125,14 @@ export async function runSeedCommand(dbConfig: DBConfig, args: string[]) {
   } catch (e: any) {
     console.log(pc.red(`\n✘ Seed failed: ${e.message}`));
   } finally {
+    // Re-enable Foreign Key checks
+    try {
+      if (dbConfig.type === "sqlite") await adapter.executeSql("PRAGMA foreign_keys = ON;");
+      else if (dbConfig.type === "mysql") await adapter.executeSql("SET FOREIGN_KEY_CHECKS = 1;");
+      else if (dbConfig.type === "postgres") await adapter.executeSql("SET session_replication_role = DEFAULT;");
+    } catch (e) {
+      // Ignore errors on cleanup
+    }
     await adapter.close();
   }
   

@@ -15,7 +15,8 @@ export interface DBAdapter {
     tableName: string,
     limit?: number,
     offset?: number,
-    whereClause?: string
+    whereClause?: string,
+    orderBy?: { col: string; asc: boolean }
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
   query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
   executeSql(sql: string): Promise<void>;

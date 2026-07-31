@@ -59,7 +59,8 @@ export class SqliteAdapter implements DBAdapter {
     tableName: string,
     limit: number = 50,
     offset: number = 0,
-    whereClause?: string
+    whereClause?: string,
+    orderBy?: { col: string; asc: boolean }
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const db = await this.getDb();
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tableName)) {
@@ -72,6 +73,9 @@ export class SqliteAdapter implements DBAdapter {
     let sql = `SELECT * FROM "${tableName}"`;
     if (whereClause) {
       sql += ` WHERE ${whereClause}`;
+    }
+    if (orderBy) {
+      sql += ` ORDER BY "${orderBy.col}" ${orderBy.asc ? "ASC" : "DESC"}`;
     }
     sql += ` LIMIT ${limit} OFFSET ${offset}`;
 

@@ -18,6 +18,31 @@ export function registerApiRoutes(app: Hono, dbConfig: DBConfig) {
     }
   });
 
+  api.get("/tables/stats", async (c) => {
+    try {
+      const tables = await adapter.getTables();
+      const stats: Record<string, number> = {};
+      for (const t of tables) {
+         try {
+           const res = await adapter.query(`SELECT COUNT(*) as c FROM "${t}"`);
+           // Different adapters might return row keys differently, try to extract count safely
+           if (res && res.rows && res.rows.length > 0) {
+              const row = res.rows[0];
+              const countVal = Object.values(row)[0];
+              stats[t] = parseInt(String(countVal), 10) || 0;
+           } else {
+              stats[t] = 0;
+           }
+         } catch(e) {
+           stats[t] = 0;
+         }
+      }
+      return c.json({ success: true, data: stats });
+    } catch (e: any) {
+      return c.json({ success: false, error: e.message }, 500);
+    }
+  });
+
   api.get("/tables/:name/schema", async (c) => {
     const tableName = c.req.param("name");
     try {
@@ -33,9 +58,16 @@ export function registerApiRoutes(app: Hono, dbConfig: DBConfig) {
     const limit = parseInt(c.req.query("limit") || "50", 10);
     const offset = parseInt(c.req.query("offset") || "0", 10);
     const whereClause = c.req.query("where") || "";
+    const orderCol = c.req.query("orderCol");
+    const orderAscStr = c.req.query("orderAsc");
+    
+    let orderBy = undefined;
+    if (orderCol) {
+      orderBy = { col: orderCol, asc: orderAscStr !== "false" };
+    }
 
     try {
-      const data = await adapter.getData(tableName, limit, offset, whereClause);
+      const data = await adapter.getData(tableName, limit, offset, whereClause, orderBy);
       return c.json({ success: true, data });
     } catch (e: any) {
       return c.json({ success: false, error: e.message }, 500);

@@ -62,7 +62,8 @@ export class PostgresAdapter implements DBAdapter {
     tableName: string,
     limit: number = 50,
     offset: number = 0,
-    whereClause?: string
+    whereClause?: string,
+    orderBy?: { col: string; asc: boolean }
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     await this.connectIfNecessary();
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
@@ -75,6 +76,9 @@ export class PostgresAdapter implements DBAdapter {
     let sql = `SELECT * FROM "${tableName}"`;
     if (whereClause) {
       sql += ` WHERE ${whereClause}`;
+    }
+    if (orderBy) {
+      sql += ` ORDER BY "${orderBy.col}" ${orderBy.asc ? "ASC" : "DESC"}`;
     }
     sql += ` LIMIT $1 OFFSET $2`;
 

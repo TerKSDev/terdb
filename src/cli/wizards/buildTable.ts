@@ -172,12 +172,12 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
     const nameStr = pc.white(col.name.padEnd(colWidths.name));
     const typeStr = pc.white(col.type.padEnd(colWidths.type));
 
-    const pkRaw = col.isPk ? "Yes" : "-";
+    const pkRaw = col.isPk ? "PK" : "-";
     const pkStr = col.isPk
       ? pc.green(pkRaw.padEnd(colWidths.key))
       : pc.dim(pkRaw.padEnd(colWidths.key));
 
-    const nullRaw = col.nullable ? "Yes" : "-";
+    const nullRaw = col.nullable ? "Yes" : "No";
     const nullStr = col.nullable
       ? pc.green(nullRaw.padEnd(colWidths.nullable))
       : pc.dim(nullRaw.padEnd(colWidths.nullable));
