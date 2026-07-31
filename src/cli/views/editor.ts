@@ -2,8 +2,14 @@ import { select, Separator } from "@inquirer/prompts";
 import pc from "picocolors";
 import { createDBAdapter } from "../../core/factory.js";
 import { selectTable } from "../menus/table.js";
-import { runBeginnerAdd, runBeginnerEdit, runBeginnerDelete, runExpertMode } from "../wizards/dataOps.js";
+import {
+  runBeginnerAdd,
+  runBeginnerEdit,
+  runBeginnerDelete,
+  runExpertMode,
+} from "../wizards/dataOps.js";
 import { drawTable } from "../ui/table.js";
+import { printCustomDashboard } from "../ui/logo.js";
 
 interface DBConfigProps {
   type: "sqlite" | "postgres" | "mysql" | "unknown";
@@ -19,38 +25,26 @@ export async function viewTables(dbConfig: DBConfigProps) {
     console.clear();
 
     let tables: string[] = [];
-    let tablesCount = "Scanning...";
+    let totalRows = 0;
+    let totalDataCount = "Scanning...";
     try {
       tables = await adapter.getTables();
-      tablesCount = `${tables.length} tables detected`;
+      for (const table of tables) {
+        try {
+          // Quote table names properly based on dialect
+          const quote = dbConfig.type === "mysql" ? "`" : '"';
+          const res = await adapter.query(`SELECT COUNT(*) as count FROM ${quote}${table}${quote}`);
+          if (res.rows.length > 0 && res.rows[0].count != null) {
+            totalRows += Number(res.rows[0].count);
+          }
+        } catch (e) {
+          // Ignore tables that can't be queried
+        }
+      }
+      totalDataCount = `${totalRows.toLocaleString()} rows across ${tables.length} tables`;
     } catch (e: any) {
-      tablesCount = `Error: ${e.message}`;
+      totalDataCount = pc.red(e.message);
     }
-
-    const terminalWidth = 74;
-    const headerTitle = ` Database Editor  •  [${dbConfig.type.toUpperCase()}]`;
-    const dashes = "═".repeat(terminalWidth - 2);
-    console.log(pc.cyan(`\n╔${dashes}╗`));
-    const spacesNeeded = terminalWidth - 2 - headerTitle.length;
-    const leftSpace = Math.max(0, Math.floor(spacesNeeded / 2));
-    const rightSpace = Math.max(0, spacesNeeded - leftSpace);
-    const titleContent =
-      " ".repeat(leftSpace) +
-      pc.bold(pc.white(headerTitle)) +
-      " ".repeat(rightSpace);
-    console.log(pc.cyan("║") + titleContent + pc.cyan("║"));
-    console.log(pc.cyan(`╠${"═".repeat(terminalWidth - 2)}╣`));
-
-    const printLine = (label: string, value: string) => {
-      const paddedLabel = label.padEnd(12);
-      const lineContent = `  ${pc.bold(paddedLabel)}: ${value}`;
-      const rawText =
-        `  ${paddedLabel}: ` + value.replace(/\x1b\[[0-9;]*m/g, "");
-      const padding = " ".repeat(
-        Math.max(0, terminalWidth - 2 - rawText.length),
-      );
-      console.log(pc.cyan("║") + lineContent + padding + pc.cyan("║"));
-    };
 
     const targetVal = dbConfig.targetUrl;
     const sourceVal =
@@ -60,20 +54,12 @@ export async function viewTables(dbConfig: DBConfigProps) {
           ? "Auto-detected local SQLite file"
           : "Manual connection config";
 
-    printLine("Database", dbConfig.type.toUpperCase());
-    printLine(
-      "Target",
-      targetVal.length > 45 ? "..." + targetVal.slice(-42) : targetVal,
-    );
-    printLine("Source", sourceVal);
-    printLine("Tables", tablesCount);
-
-    console.log(pc.cyan(`╚${"═".repeat(terminalWidth - 2)}╝`));
-    console.log(
-      pc.dim(
-        "      Use arrow keys to navigate • Enter to select • Ctrl+C to exit\n",
-      ),
-    );
+    printCustomDashboard(` Data Browser & Editor  •  [${dbConfig.type.toUpperCase()}]`, [
+      { label: "Database", value: dbConfig.type.toUpperCase() },
+      { label: "Target", value: targetVal.length > 45 ? "..." + targetVal.slice(-42) : targetVal },
+      { label: "Source", value: sourceVal },
+      { label: "Total Data", value: totalDataCount }
+    ]);
 
     try {
       if (tables.length === 0) {
@@ -90,7 +76,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
         })),
         new Separator(),
         {
-          name: pc.dim("Go Back"),
+          name: pc.dim(" Back"),
           value: "BACK",
         },
       ];
@@ -106,16 +92,21 @@ export async function viewTables(dbConfig: DBConfigProps) {
       let currentPage = 1;
       let currentWhere = "";
       const limit = 50;
-      
+
       while (tableLoop) {
         console.clear();
         const offset = (currentPage - 1) * limit;
         const schema = await adapter.getSchema(selectedTable);
-        const colNames = schema.map(c => c.name);
-        
+        const colNames = schema.map((c) => c.name);
+
         let data;
         try {
-          data = await adapter.getData(selectedTable, limit, offset, currentWhere);
+          data = await adapter.getData(
+            selectedTable,
+            limit,
+            offset,
+            currentWhere,
+          );
         } catch (e: any) {
           console.log(pc.red(`\nError fetching data: ${e.message}\n`));
           currentWhere = "";
@@ -126,7 +117,10 @@ export async function viewTables(dbConfig: DBConfigProps) {
         const rows = data.rows;
 
         const detailHeaderTitle = ` ${selectedTable} (Page ${currentPage}) `;
-        drawTable(colNames, rows, { title: detailHeaderTitle, maxColWidth: 30 });
+        drawTable(colNames, rows, {
+          title: detailHeaderTitle,
+          maxColWidth: 30,
+        });
 
         const hasNextPage = rows.length === limit;
         const hasPrevPage = currentPage > 1;
@@ -136,30 +130,35 @@ export async function viewTables(dbConfig: DBConfigProps) {
           { name: "Delete Data", value: "delete" },
           new Separator(),
           { name: "Search Data", value: "search" },
-          { name: currentWhere ? "Clear Search" : pc.dim("Clear Search (disabled)"), value: currentWhere ? "clear_search" : "noop" },
+          {
+            name: currentWhere
+              ? "Clear Search"
+              : pc.dim("Clear Search (disabled)"),
+            value: currentWhere ? "clear_search" : "noop",
+          },
           new Separator(),
           { name: "Export to CSV", value: "exportCsv" },
           { name: "Export to JSON", value: "exportJson" },
           new Separator(),
         ];
-        if (hasPrevPage) actionChoices.push({ name: "Previous Page", value: "prev" });
-        if (hasNextPage) actionChoices.push({ name: "Next Page", value: "next" });
-        actionChoices.push({ name: pc.dim("Go Back"), value: "BACK" });
+        if (hasPrevPage)
+          actionChoices.push({ name: "Previous Page", value: "prev" });
+        if (hasNextPage)
+          actionChoices.push({ name: "Next Page", value: "next" });
+        actionChoices.push({ name: pc.dim(" Back"), value: "BACK" });
 
         const action = await select({
           message: "Select an action for this table:",
           theme: {
-            prefix: pc.cyan("?"),
+            prefix: pc.cyan("✓ "),
             icon: {
-              cursor: pc.cyan("❯ "),
+              cursor: pc.cyan("› "),
             },
             style: {
               message: (text: string) => pc.bold(pc.white(text)),
               highlight: (text: string) => {
                 const clean = text.replace(/\x1b\[[0-9;]*m/g, "");
-                return clean.includes("Go Back")
-                  ? pc.red(clean)
-                  : pc.cyan(clean);
+                return clean.includes(" Back") ? pc.red(clean) : pc.cyan(clean);
               },
             },
           },
@@ -192,7 +191,8 @@ export async function viewTables(dbConfig: DBConfigProps) {
         if (action === "search") {
           const { input } = await import("@inquirer/prompts");
           const searchInput = await input({
-            message: "Enter Search (e.g. `age > 18` or `John` for fuzzy search):"
+            message:
+              "Enter Search (e.g. `age > 18` or `John` for fuzzy search):",
           });
           const searchVal = searchInput.trim();
           if (searchVal) {
@@ -202,11 +202,18 @@ export async function viewTables(dbConfig: DBConfigProps) {
               currentWhere = searchVal;
             } else {
               // Fuzzy search across all string columns
-              const strCols = schema.filter(c => c.type.toLowerCase().includes("char") || c.type.toLowerCase().includes("text"));
+              const strCols = schema.filter(
+                (c) =>
+                  c.type.toLowerCase().includes("char") ||
+                  c.type.toLowerCase().includes("text"),
+              );
               if (strCols.length > 0) {
                 // If dialect is Postgres, ILIKE is better, but LIKE is standard. We will use LIKE for simplicity, or ILIKE for PG.
                 const likeOp = dbConfig.type === "postgres" ? "ILIKE" : "LIKE";
-                const conditions = strCols.map(c => `"${c.name}" ${likeOp} '%${searchVal.replace(/'/g, "''")}%'`);
+                const conditions = strCols.map(
+                  (c) =>
+                    `"${c.name}" ${likeOp} '%${searchVal.replace(/'/g, "''")}%'`,
+                );
                 currentWhere = conditions.join(" OR ");
               } else {
                 currentWhere = `"${schema[0].name}" = '${searchVal}'`; // fallback
@@ -220,32 +227,45 @@ export async function viewTables(dbConfig: DBConfigProps) {
         if (action === "exportCsv" || action === "exportJson") {
           try {
             console.log(pc.yellow("\nExporting data..."));
-            const allData = await adapter.getData(selectedTable, 9999999, 0, currentWhere);
+            const allData = await adapter.getData(
+              selectedTable,
+              9999999,
+              0,
+              currentWhere,
+            );
             const fs = await import("fs/promises");
             const path = await import("path");
-            
+
             const exportDir = path.join(process.cwd(), "terdb_exports");
             await fs.mkdir(exportDir, { recursive: true });
-            
+
             if (action === "exportCsv") {
               const headers = allData.columns.join(",") + "\n";
-              const rowsStr = allData.rows.map((r: any) => {
-                return allData.columns.map(c => {
-                  const val = String(r[c] ?? "").replace(/"/g, '""');
-                  return `"${val}"`;
-                }).join(",");
-              }).join("\n");
-              
+              const rowsStr = allData.rows
+                .map((r: any) => {
+                  return allData.columns
+                    .map((c) => {
+                      const val = String(r[c] ?? "").replace(/"/g, '""');
+                      return `"${val}"`;
+                    })
+                    .join(",");
+                })
+                .join("\n");
+
               const fp = path.join(exportDir, `${selectedTable}.csv`);
               await fs.writeFile(fp, headers + rowsStr, "utf-8");
               console.log(pc.green(`\nExported to ${fp}`));
             } else {
               const fp = path.join(exportDir, `${selectedTable}.json`);
-              await fs.writeFile(fp, JSON.stringify(allData.rows, null, 2), "utf-8");
+              await fs.writeFile(
+                fp,
+                JSON.stringify(allData.rows, null, 2),
+                "utf-8",
+              );
               console.log(pc.green(`\nExported to ${fp}`));
             }
           } catch (e: any) {
-             console.log(pc.red(`\nExport Error: ${e.message}`));
+            console.log(pc.red(`\nExport Error: ${e.message}`));
           }
           const { input } = await import("@inquirer/prompts");
           await input({ message: "Click Enter to continue..." });
@@ -256,10 +276,13 @@ export async function viewTables(dbConfig: DBConfigProps) {
           message: `Select mode for ${action} data:`,
           choices: [
             { name: "Beginner (Interactive Step-by-Step)", value: "beginner" },
-            { name: "Expert (Load SQL from .sql or .md file)", value: "expert" },
+            {
+              name: "Expert (Load SQL from .sql or .md file)",
+              value: "expert",
+            },
             new Separator(),
             { name: pc.dim("Cancel"), value: "cancel" },
-          ]
+          ],
         });
 
         if (mode === "cancel") {
@@ -279,12 +302,17 @@ export async function viewTables(dbConfig: DBConfigProps) {
           await runBeginnerEdit(adapter, dbConfig.type, selectedTable, schema);
           await waitForEnter();
         } else if (action === "delete") {
-          await runBeginnerDelete(adapter, dbConfig.type, selectedTable, schema);
+          await runBeginnerDelete(
+            adapter,
+            dbConfig.type,
+            selectedTable,
+            schema,
+          );
           await waitForEnter();
         }
       }
     } catch (error: any) {
-      console.log(pc.red(`\n❌ Error: ${error.message}`));
+      console.log(pc.red(`\nx Error: ${error.message}`));
       await waitForEnter();
       viewing = false;
     }

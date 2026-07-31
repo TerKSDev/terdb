@@ -1,6 +1,6 @@
 {
   "name": "@terks.dev/terdb",
-  "version": "1.0.1-beta.3",
+  "version": "1.0.1-beta.4",
   "description": "A lightweight interactive TUI database client",
   "bin": {
     "terdb": "dist/cli.js"

@@ -6,7 +6,7 @@ import { runWizard } from "./wizards/buildTable.js";
 import { runSetup } from "./wizards/setupConn.js";
 import { runSqlWriter } from "./views/sqlWriter.js";
 import { selectAction } from "./menus/action.js";
-import { selectBuild } from "./menus/build.js";
+import { selectTableManager } from "./menus/tableManager.js";
 import { runRepl } from "./views/repl.js";
 import { parseArgs } from "node:util";
 
@@ -15,7 +15,13 @@ export async function main() {
   let customUrl: string | undefined;
 
   // Handle URL shortcut if the first argument looks like a database connection string
-  if (args.length > 0 && (args[0].startsWith("postgres://") || args[0].startsWith("postgresql://") || args[0].startsWith("mysql://") || args[0].startsWith("file:"))) {
+  if (
+    args.length > 0 &&
+    (args[0].startsWith("postgres://") ||
+      args[0].startsWith("postgresql://") ||
+      args[0].startsWith("mysql://") ||
+      args[0].startsWith("file:"))
+  ) {
     customUrl = args[0];
   }
 
@@ -25,31 +31,52 @@ export async function main() {
       format: { type: "string" },
       "schema-only": { type: "boolean" },
       table: { type: "string" },
-      help: { type: "boolean" }
+      help: { type: "boolean" },
     },
     strict: false,
-    allowPositionals: true
+    allowPositionals: true,
   });
 
   if (values.help) {
     console.log(pc.cyan(`\nTerDB CLI - Modern Database Manager\n`));
-    console.log(`${pc.bold("Usage:")} npx @terks.dev/terdb [command] [options]\n`);
+    console.log(
+      `${pc.bold("Usage:")} npx @terks.dev/terdb [command] [options]\n`,
+    );
     console.log(`${pc.bold("Commands:")}`);
     console.log(`  ${pc.green("query")} "<sql>"         Run a quick SQL query`);
-    console.log(`  ${pc.green("exec")} <file.sql>       Execute a SQL script file`);
-    console.log(`  ${pc.green("export")} [table]        Export table(s) to CSV/JSON`);
-    console.log(`  ${pc.green("import")} [file]         Import JSON/CSV into a table`);
-    console.log(`  ${pc.green("seed")} [table] [count]  Generate fake data for a table`);
-    console.log(`  ${pc.green("diagram")}               Generate a Mermaid ER diagram`);
-    console.log(`  ${pc.green("generate-types")}        Generate TypeScript interfaces`);
-    console.log(`  ${pc.green("backup")}                Backup the entire database`);
-    console.log(`  ${pc.green("init")} [db_type]        Initialize a local database & .env`);
+    console.log(
+      `  ${pc.green("exec")} <file.sql>       Execute a SQL script file`,
+    );
+    console.log(
+      `  ${pc.green("export")} [table]        Export table(s) to CSV/JSON`,
+    );
+    console.log(
+      `  ${pc.green("import")} [file]         Import JSON/CSV into a table`,
+    );
+    console.log(
+      `  ${pc.green("seed")} [table] [count]  Generate fake data for a table`,
+    );
+    console.log(
+      `  ${pc.green("diagram")}               Generate a Mermaid ER diagram`,
+    );
+    console.log(
+      `  ${pc.green("generate-types")}        Generate TypeScript interfaces`,
+    );
+    console.log(
+      `  ${pc.green("backup")}                Backup the entire database`,
+    );
+    console.log(
+      `  ${pc.green("init")} [db_type]        Initialize a local database & .env`,
+    );
+    console.log(`  ${pc.green("drop-db")} [db_type]     Drop a local database`);
     console.log(`\n${pc.bold("Options:")}`);
     console.log(`  --help                Show this help message`);
     console.log(`  --format <type>       Specify export format (csv|json)`);
     console.log(`  --schema-only         Export schema without data`);
     console.log(`  --table <name>        Specify table for import`);
-    console.log(`\nIf you don't provide a command, TerDB will launch the Interactive UI!`);
+    console.log(
+      `\nIf you don't provide a command, TerDB will launch the Interactive UI!`,
+    );
     process.exit(0);
   }
 
@@ -105,7 +132,8 @@ export async function main() {
   }
 
   if (command === "generate-types") {
-    const { runGenerateTypesCommand } = await import("../../subcommands/generateTypes.js");
+    const { runGenerateTypesCommand } =
+      await import("../../subcommands/generateTypes.js");
     const dbConfig = await detectDatabase();
     await runGenerateTypesCommand(dbConfig);
     return;
@@ -117,6 +145,12 @@ export async function main() {
     return;
   }
 
+  if (command === "drop-db") {
+    const { runDropDbCommand } = await import("../../subcommands/drop-db.js");
+    await runDropDbCommand(positionals.slice(1));
+    return;
+  }
+
   let running = true;
   let dbConfig = await detectDatabase(customUrl);
 
@@ -124,11 +158,6 @@ export async function main() {
     console.clear();
     printLogo();
     printDashboard(dbConfig);
-    console.log(
-      pc.dim(
-        "      Use arrow keys to navigate • Enter to select • Ctrl+C to exit\n",
-      ),
-    );
 
     const action = await selectAction(dbConfig);
 
@@ -145,26 +174,10 @@ export async function main() {
           await viewTables(dbConfig);
         }
         break;
-      case "build":
-        const buildMethod = await selectBuild();
-        switch (buildMethod) {
-          case "wizard":
-            if (dbConfig.type === "unknown") {
-              console.log(
-                pc.yellow(
-                  `\nNo database connection found. Please setup first.`,
-                ),
-              );
-            } else {
-              await runWizard(dbConfig);
-            }
-            break;
-          case "sql":
-            await runSqlWriter(dbConfig);
-            break;
-          case "back":
-            break;
-        }
+      case "table":
+        const { runTableManagerFlow } =
+          await import("./wizards/tableManagerFlow.js");
+        await runTableManagerFlow(dbConfig);
         break;
       case "repl":
         await runRepl(dbConfig);

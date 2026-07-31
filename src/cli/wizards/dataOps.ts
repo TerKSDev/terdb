@@ -36,9 +36,9 @@ export async function runBeginnerAdd(adapter: DBAdapter, dbType: string, tableNa
   console.log(pc.dim("\nExecuting: ") + pc.yellow(sql));
   try {
     await adapter.executeSql(sql);
-    console.log(pc.green("✅ Data added successfully!"));
+    console.log(pc.green("✓ Data added successfully!"));
   } catch (e: any) {
-    console.log(pc.red(`❌ Failed to add data: ${e.message}`));
+    console.log(pc.red(`x Failed to add data: ${e.message}`));
   }
 }
 
@@ -78,9 +78,9 @@ export async function runBeginnerEdit(adapter: DBAdapter, dbType: string, tableN
   console.log(pc.dim("\nExecuting: ") + pc.yellow(sql));
   try {
     await adapter.executeSql(sql);
-    console.log(pc.green("✅ Data updated successfully!"));
+    console.log(pc.green("✓ Data updated successfully!"));
   } catch (e: any) {
-    console.log(pc.red(`❌ Failed to update data: ${e.message}`));
+    console.log(pc.red(`x Failed to update data: ${e.message}`));
   }
 }
 
@@ -106,9 +106,9 @@ export async function runBeginnerDelete(adapter: DBAdapter, dbType: string, tabl
   console.log(pc.dim("\nExecuting: ") + pc.yellow(sql));
   try {
     await adapter.executeSql(sql);
-    console.log(pc.green("✅ Data deleted successfully!"));
+    console.log(pc.green("✓ Data deleted successfully!"));
   } catch (e: any) {
-    console.log(pc.red(`❌ Failed to delete data: ${e.message}`));
+    console.log(pc.red(`x Failed to delete data: ${e.message}`));
   }
 }
 
@@ -126,7 +126,7 @@ export async function runExpertMode(adapter: DBAdapter) {
       try {
         fileContent = await fs.readFile(absolutePath, "utf-8");
       } catch (err: any) {
-        console.log(pc.red(`\n❌ Failed to read file: ${err.message}`));
+        console.log(pc.red(`\nx Failed to read file: ${err.message}`));
         return;
       }
 
@@ -145,9 +145,9 @@ export async function runExpertMode(adapter: DBAdapter) {
         console.log(pc.yellow(sqlToExecute));
         try {
           await adapter.executeSql(sqlToExecute);
-          console.log(pc.green("\n✅ SQL executed successfully!"));
+          console.log(pc.green("\n✓ SQL executed successfully!"));
         } catch (e: any) {
-          console.log(pc.red(`\n❌ Error executing SQL: ${e.message}`));
+          console.log(pc.red(`\nx Error executing SQL: ${e.message}`));
         }
       } else {
         console.log(pc.yellow("\n⚠️  No SQL found in the file. Aborted."));

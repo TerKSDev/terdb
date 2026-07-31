@@ -1,10 +1,13 @@
 import { input, select, confirm } from "@inquirer/prompts";
 import pc from "picocolors";
-import { DBConfig, ColumnSchema } from "../../core/types.js";
-import { createDBAdapter } from "../../core/factory.js";
+import { ColumnSchema, DBConfig } from "../../core/types.js";
 import { getDialect } from "../../core/dialect.js";
+import { createDBAdapter } from "../../core/factory.js";
+import { promptColumnSchema } from "./columnWizard.js";
 
 export async function runWizard(dbConfig: DBConfig) {
+  const adapter = createDBAdapter(dbConfig as any);
+
   let tableName = "";
   while (!tableName) {
     tableName = await input({
@@ -26,72 +29,21 @@ export async function runWizard(dbConfig: DBConfig) {
 
   while (addMore) {
     printCurrentColumns(tableName, columns);
-    let colName = "";
-    while (!colName) {
-      colName = await input({
-        message: "Column name:",
-      });
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(colName)) {
-        console.log(
-          pc.red(
-            "Invalid column name. Use only letters, numbers, and underscores.",
-          ),
-        );
-        colName = "";
-      } else if (columns.find((c) => c.name === colName)) {
-        console.log(pc.red("Column name already exists!"));
-        colName = "";
-      }
+    
+    const existingColumns = columns.map(c => c.name);
+    const { col, isPk } = await promptColumnSchema(adapter, hasPk, existingColumns);
+
+    if (!col) {
+      break; // Empty input means cancel
     }
 
-    const colType = await select({
-      message: `Select type for column '${colName}':`,
-      choices: [
-        { name: "Integer", value: "Integer" },
-        { name: "Text (String)", value: "Text" },
-        { name: "Boolean", value: "Boolean" },
-        { name: "Decimal (Float)", value: "Decimal" },
-        { name: "DateTime", value: "DateTime" },
-      ],
-    });
+    if (isPk) hasPk = true;
 
-    let extra = "";
-
-    if (colType === "DateTime") {
-      const isTimestamp = await confirm({
-        message: `Set default to CURRENT_TIMESTAMP?`,
-        default: false,
-      });
-      if (isTimestamp) {
-        extra = "Timestamp";
-      }
-    }
-
-    let isPk = false;
-    if (!hasPk && colType !== "DateTime") {
-      isPk = await confirm({
-        message: `Is '${colName}' the Primary Key?`,
-        default: false,
-      });
-      if (isPk) {
-        hasPk = true;
-        if (colType === "Integer") extra = "AutoInc";
-      }
-    }
-
-    let nullable = false;
-    if (!isPk) {
-      nullable = await confirm({
-        message: `Can '${colName}' be NULL?`,
-        default: true,
-      });
-    }
-
-    columns.push({ name: colName, type: colType, isPk, nullable, extra });
+    columns.push(col);
 
     addMore = await confirm({
       theme: {
-        prefix: pc.cyan("\n✔ "),
+        prefix: pc.cyan("\n✓ "),
         style: {
           message: (text: string) => pc.bold(pc.white(text)),
           highlight: (text: string) => {
@@ -120,18 +72,18 @@ export async function runWizard(dbConfig: DBConfig) {
   });
 
   if (proceed) {
-    const adapter = createDBAdapter(dbConfig as any);
     try {
       console.log(pc.dim("Executing SQL..."));
       await adapter.executeSql(sql);
-      console.log(pc.green(`\n✅ Table '${tableName}' created successfully!`));
+      console.log(pc.green(`\n✓ Table '${tableName}' created successfully!`));
     } catch (e: any) {
-      console.log(pc.red(`\n❌ Error creating table: ${e.message}`));
+      console.log(pc.red(`\nx Error creating table: ${e.message}`));
     } finally {
       await adapter.close();
     }
   } else {
     console.log(pc.yellow("Aborted table creation."));
+    await adapter.close();
   }
 
   await waitForEnter();
@@ -151,17 +103,17 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
   const colWidths = {
     name: 20,
     type: 18,
-    pk: 8,
+    key: 8,
     nullable: 10,
-    extra: 12,
+    defaultCol: 16,
   };
 
   const totalWidth =
     colWidths.name +
     colWidths.type +
-    colWidths.pk +
+    colWidths.key +
     colWidths.nullable +
-    colWidths.extra +
+    colWidths.defaultCol +
     14;
 
   // Title Box
@@ -182,11 +134,11 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
         mid +
         "═".repeat(colWidths.type + 2) +
         mid +
-        "═".repeat(colWidths.pk + 2) +
+        "═".repeat(colWidths.key + 2) +
         mid +
         "═".repeat(colWidths.nullable + 2) +
         mid +
-        "═".repeat(colWidths.extra + 2) +
+        "═".repeat(colWidths.defaultCol + 2) +
         right,
     );
   };
@@ -200,11 +152,11 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
       pc.cyan(" ║ ") +
       pc.bold(pc.white("Type".padEnd(colWidths.type))) +
       pc.cyan(" ║ ") +
-      pc.bold(pc.white("PK".padEnd(colWidths.pk))) +
+      pc.bold(pc.white("Key".padEnd(colWidths.key))) +
       pc.cyan(" ║ ") +
       pc.bold(pc.white("Nullable".padEnd(colWidths.nullable))) +
       pc.cyan(" ║ ") +
-      pc.bold(pc.white("Extra".padEnd(colWidths.extra))) +
+      pc.bold(pc.white("Default".padEnd(colWidths.defaultCol))) +
       pc.cyan(" ║"),
   );
 
@@ -222,18 +174,18 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
 
     const pkRaw = col.isPk ? "Yes" : "-";
     const pkStr = col.isPk
-      ? pc.green(pkRaw.padEnd(colWidths.pk))
-      : pc.dim(pkRaw.padEnd(colWidths.pk));
+      ? pc.green(pkRaw.padEnd(colWidths.key))
+      : pc.dim(pkRaw.padEnd(colWidths.key));
 
     const nullRaw = col.nullable ? "Yes" : "-";
     const nullStr = col.nullable
       ? pc.green(nullRaw.padEnd(colWidths.nullable))
       : pc.dim(nullRaw.padEnd(colWidths.nullable));
 
-    const extraRaw = col.extra || "-";
-    const extraStr = col.extra
-      ? pc.yellow(extraRaw.padEnd(colWidths.extra))
-      : pc.dim(extraRaw.padEnd(colWidths.extra));
+    const extraRaw = col.defaultValue || "-";
+    const extraStr = col.defaultValue
+      ? pc.yellow(extraRaw.padEnd(colWidths.defaultCol))
+      : pc.dim(extraRaw.padEnd(colWidths.defaultCol));
 
     console.log(
       pc.cyan("║ ") +
@@ -270,5 +222,5 @@ function printCurrentColumns(tableName: string, columns: ColumnSchema[]) {
     console.log(drawDivider("╚", "╩", "╝"));
   }
 
-  console.log("");
+  console.log(pc.dim("\t\t\t  Leave empty the Column Name to cancel.\n"));
 }

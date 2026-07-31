@@ -3,7 +3,9 @@ export interface ColumnSchema {
   type: string;
   isPk: boolean;
   nullable: boolean;
-  extra?: string;
+  defaultValue?: string;
+  enumValues?: string[];
+  fkTarget?: { table: string; column: string };
 }
 
 export interface DBAdapter {

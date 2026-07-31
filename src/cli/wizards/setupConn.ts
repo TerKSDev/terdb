@@ -55,13 +55,13 @@ export async function runSetup(currentConfig: DBConfig): Promise<DBConfig> {
           await saveDatabaseUrl(databaseUrl);
           console.log(
             pc.green(
-              "✅ Database connection setup successfully and saved to .env!",
+              "✓ Database connection setup successfully and saved to .env!",
             ),
           );
         } catch (e: any) {
           console.log(
             pc.red(
-              `\n❌ Connection failed: ${e.message}\nPlease enter a valid database URL or check your database status.`,
+              `\nx Connection failed: ${e.message}\nPlease enter a valid database URL or check your database status.`,
             ),
           );
         }

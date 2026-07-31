@@ -23,6 +23,9 @@ export class SqliteDialect implements Dialect {
       if (col.type === "Boolean") typeStr = "BOOLEAN";
       if (col.type === "Decimal") typeStr = "REAL";
       if (col.type === "DateTime") typeStr = "DATETIME";
+      if (col.type === "Enum" && col.enumValues) {
+        typeStr = `TEXT CHECK(${this.quoteIdentifier(col.name)} IN (${col.enumValues.map(v => `'${this.escapeString(v)}'`).join(", ")}))`;
+      }
       
       if (col.isPk && col.type === "Integer") typeStr = "INTEGER PRIMARY KEY AUTOINCREMENT";
       else if (col.isPk) typeStr += " PRIMARY KEY";
@@ -30,10 +33,24 @@ export class SqliteDialect implements Dialect {
         if (!col.nullable) typeStr += " NOT NULL";
       }
       
-      if (col.extra === "Timestamp") typeStr += " DEFAULT CURRENT_TIMESTAMP";
+      if (col.defaultValue && col.defaultValue !== "AutoInc" && !col.defaultValue.startsWith("FK ->")) {
+        if (col.defaultValue === "Timestamp") {
+          typeStr += " DEFAULT CURRENT_TIMESTAMP";
+        } else {
+          typeStr += ` DEFAULT ${col.defaultValue}`;
+        }
+      }
       
       return `  ${this.quoteIdentifier(col.name)} ${typeStr}`;
     });
+
+    const fks = columns
+      .filter(col => col.fkTarget)
+      .map(col => `  FOREIGN KEY (${this.quoteIdentifier(col.name)}) REFERENCES ${this.quoteIdentifier(col.fkTarget!.table)}(${this.quoteIdentifier(col.fkTarget!.column)})`);
+
+    if (fks.length > 0) {
+      lines.push(...fks);
+    }
 
     return `CREATE TABLE ${this.quoteIdentifier(tableName)} (\n${lines.join(",\n")}\n);`;
   }
@@ -58,15 +75,32 @@ export class PostgresDialect implements Dialect {
         if (col.type === "Boolean") typeStr = "BOOLEAN";
         if (col.type === "Decimal") typeStr = "NUMERIC";
         if (col.type === "DateTime") typeStr = "TIMESTAMP";
+        if (col.type === "Enum" && col.enumValues) {
+          typeStr = `VARCHAR(255) CHECK(${this.quoteIdentifier(col.name)} IN (${col.enumValues.map(v => `'${this.escapeString(v)}'`).join(", ")}))`;
+        }
         
         if (col.isPk) typeStr += " PRIMARY KEY";
         if (!col.nullable && !col.isPk) typeStr += " NOT NULL";
       }
       
-      if (col.extra === "Timestamp") typeStr += " DEFAULT CURRENT_TIMESTAMP";
+      if (col.defaultValue && col.defaultValue !== "AutoInc" && !col.defaultValue.startsWith("FK ->")) {
+        if (col.defaultValue === "Timestamp") {
+          typeStr += " DEFAULT CURRENT_TIMESTAMP";
+        } else {
+          typeStr += ` DEFAULT ${col.defaultValue}`;
+        }
+      }
       
       return `  ${this.quoteIdentifier(col.name)} ${typeStr}`;
     });
+
+    const fks = columns
+      .filter(col => col.fkTarget)
+      .map(col => `  FOREIGN KEY (${this.quoteIdentifier(col.name)}) REFERENCES ${this.quoteIdentifier(col.fkTarget!.table)}(${this.quoteIdentifier(col.fkTarget!.column)})`);
+
+    if (fks.length > 0) {
+      lines.push(...fks);
+    }
 
     return `CREATE TABLE ${this.quoteIdentifier(tableName)} (\n${lines.join(",\n")}\n);`;
   }
@@ -89,15 +123,32 @@ export class MysqlDialect implements Dialect {
       if (col.type === "Boolean") typeStr = "BOOLEAN";
       if (col.type === "Decimal") typeStr = "DOUBLE";
       if (col.type === "DateTime") typeStr = "DATETIME";
+      if (col.type === "Enum" && col.enumValues) {
+        typeStr = `VARCHAR(255) CHECK(${this.quoteIdentifier(col.name)} IN (${col.enumValues.map(v => `'${this.escapeString(v)}'`).join(", ")}))`;
+      }
       
       if (col.isPk && col.type === "Integer") typeStr += " AUTO_INCREMENT PRIMARY KEY";
       else if (col.isPk) typeStr += " PRIMARY KEY";
       
       if (!col.nullable && !col.isPk) typeStr += " NOT NULL";
-      if (col.extra === "Timestamp") typeStr += " DEFAULT CURRENT_TIMESTAMP";
+      if (col.defaultValue && col.defaultValue !== "AutoInc" && !col.defaultValue.startsWith("FK ->")) {
+        if (col.defaultValue === "Timestamp") {
+          typeStr += " DEFAULT CURRENT_TIMESTAMP";
+        } else {
+          typeStr += ` DEFAULT ${col.defaultValue}`;
+        }
+      }
       
       return `  ${this.quoteIdentifier(col.name)} ${typeStr}`;
     });
+
+    const fks = columns
+      .filter(col => col.fkTarget)
+      .map(col => `  FOREIGN KEY (${this.quoteIdentifier(col.name)}) REFERENCES ${this.quoteIdentifier(col.fkTarget!.table)}(${this.quoteIdentifier(col.fkTarget!.column)})`);
+
+    if (fks.length > 0) {
+      lines.push(...fks);
+    }
 
     return `CREATE TABLE ${this.quoteIdentifier(tableName)} (\n${lines.join(",\n")}\n);`;
   }

@@ -29,7 +29,7 @@ export async function runSqlWriter(dbConfig: DBConfig) {
       try {
         fileContent = await fs.readFile(absolutePath, "utf-8");
       } catch (err: any) {
-        console.log(pc.red(`\n❌ Failed to read file: ${err.message}`));
+        console.log(pc.red(`\nx Failed to read file: ${err.message}`));
         return;
       }
 
@@ -48,7 +48,7 @@ export async function runSqlWriter(dbConfig: DBConfig) {
         const adapter = createDBAdapter(dbConfig as any);
         try {
           await adapter.executeSql(sqlToExecute);
-          console.log(pc.green("\n✅ SQL executed successfully!"));
+          console.log(pc.green("\n✓ SQL executed successfully!"));
         } finally {
           await adapter.close();
         }

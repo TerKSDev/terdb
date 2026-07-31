@@ -96,6 +96,7 @@ export async function runInitCommand(args: string[]) {
           port: parseInt(port),
           user,
           password: pass,
+          database: "postgres", // Explicitly connect to default maintenance db
         });
         await conn.connect();
         // Postgres does not support CREATE DATABASE IF NOT EXISTS natively in a simple query easily,
