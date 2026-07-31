@@ -45,7 +45,8 @@ export class MysqlAdapter implements DBAdapter {
   async getData(
     tableName: string,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
+    whereClause?: string
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const pool = await this.getPool();
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
@@ -55,8 +56,32 @@ export class MysqlAdapter implements DBAdapter {
     const schema = await this.getSchema(tableName);
     const columns = schema.map((col) => col.name);
 
-    const [rows] = await pool.query(`SELECT * FROM \`${tableName}\` LIMIT ${limit} OFFSET ${offset}`);
+    let sql = `SELECT * FROM \`${tableName}\``;
+    if (whereClause) {
+      sql += ` WHERE ${whereClause}`;
+    }
+    sql += ` LIMIT ${limit} OFFSET ${offset}`;
+
+    const [rows] = await pool.query(sql);
     return { columns, rows: rows as Record<string, any>[] };
+  }
+
+  async query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
+    const pool = await this.getPool();
+    const [rows, fields] = await pool.query(sql);
+    let columns: string[] = [];
+    let data: Record<string, any>[] = [];
+
+    if (fields && Array.isArray(fields)) {
+      columns = fields.map((f: any) => f.name);
+      data = rows as Record<string, any>[];
+    } else {
+      // It's a mutation query (INSERT/UPDATE/DELETE)
+      columns = ["Result"];
+      data = [{ Result: "Success", AffectedRows: (rows as any).affectedRows }];
+    }
+
+    return { columns, rows: data };
   }
 
   async executeSql(sql: string): Promise<void> {

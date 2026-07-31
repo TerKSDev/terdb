@@ -61,7 +61,8 @@ export class PostgresAdapter implements DBAdapter {
   async getData(
     tableName: string,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
+    whereClause?: string
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     await this.connectIfNecessary();
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
@@ -71,8 +72,24 @@ export class PostgresAdapter implements DBAdapter {
     const schema = await this.getSchema(tableName);
     const columns = schema.map((col) => col.name);
 
-    const res = await this.client.query(`SELECT * FROM "${tableName}" LIMIT $1 OFFSET $2`, [limit, offset]);
+    let sql = `SELECT * FROM "${tableName}"`;
+    if (whereClause) {
+      sql += ` WHERE ${whereClause}`;
+    }
+    sql += ` LIMIT $1 OFFSET $2`;
+
+    const res = await this.client.query(sql, [limit, offset]);
     return { columns, rows: res.rows };
+  }
+
+  async query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
+    await this.connectIfNecessary();
+    const res = await this.client.query(sql);
+    let columns: string[] = [];
+    if (res.fields) {
+      columns = res.fields.map(f => f.name);
+    }
+    return { columns, rows: res.rows || [] };
   }
 
   async executeSql(sql: string): Promise<void> {

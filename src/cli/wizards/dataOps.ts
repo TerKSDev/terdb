@@ -2,8 +2,8 @@ import { input, select } from "@inquirer/prompts";
 import pc from "picocolors";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { DBAdapter, ColumnSchema } from "../core/types.js";
-import { getDialect } from "../core/dialect.js";
+import { DBAdapter, ColumnSchema } from "../../core/types.js";
+import { getDialect } from "../../core/dialect.js";
 
 export async function runBeginnerAdd(adapter: DBAdapter, dbType: string, tableName: string, columns: ColumnSchema[]) {
   const dialect = getDialect(dbType as any);

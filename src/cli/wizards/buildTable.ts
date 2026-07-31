@@ -1,8 +1,8 @@
 import { input, select, confirm } from "@inquirer/prompts";
 import pc from "picocolors";
-import { DBConfig, ColumnSchema } from "../core/types.js";
-import { createDBAdapter } from "../core/factory.js";
-import { getDialect } from "../core/dialect.js";
+import { DBConfig, ColumnSchema } from "../../core/types.js";
+import { createDBAdapter } from "../../core/factory.js";
+import { getDialect } from "../../core/dialect.js";
 
 export async function runWizard(dbConfig: DBConfig) {
   let tableName = "";

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/npm/v/terdb" alt="NPM Version" />
+  <img src="https://img.shields.io/npm/v/@terks.dev/terdb" alt="NPM Version" />
   <img src="https://img.shields.io/badge/Node-%3E%3D22.0.0-blue" alt="Node Version" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
 </p>
@@ -16,7 +16,7 @@
 
 ## ✨ Features
 
-- 🚀 **Zero Install Needed**: Run it instantly with `npx terdb`.
+- 🚀 **Zero Install Needed**: Run it instantly with `npx @terks.dev/terdb`.
 - 🔌 **Universal Database Support**: Natively supports **PostgreSQL**, **MySQL**, and **SQLite**.
 - 🛠 **Table Builder Wizard**: A step-by-step visual ERD-like builder to create tables effortlessly (Supports `AutoInc`, `Nullable`, `Timestamps`, and more).
 - 📝 **Interactive CRUD Editor**: Add, edit, and delete data with a smart step-by-step interface. Auto-detects Primary Keys and types!

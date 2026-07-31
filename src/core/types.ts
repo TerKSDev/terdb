@@ -12,8 +12,10 @@ export interface DBAdapter {
   getData(
     tableName: string,
     limit?: number,
-    offset?: number
+    offset?: number,
+    whereClause?: string
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
+  query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
   executeSql(sql: string): Promise<void>;
   close(): Promise<void>;
 }

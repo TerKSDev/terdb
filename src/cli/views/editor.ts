@@ -1,8 +1,9 @@
 import { select, Separator } from "@inquirer/prompts";
 import pc from "picocolors";
-import { createDBAdapter } from "../core/factory.js";
-import { selectTable } from "./select/table.js";
-import { runBeginnerAdd, runBeginnerEdit, runBeginnerDelete, runExpertMode } from "./dataOps.js";
+import { createDBAdapter } from "../../core/factory.js";
+import { selectTable } from "../menus/table.js";
+import { runBeginnerAdd, runBeginnerEdit, runBeginnerDelete, runExpertMode } from "../wizards/dataOps.js";
+import { drawTable } from "../ui/table.js";
 
 interface DBConfigProps {
   type: "sqlite" | "postgres" | "mysql" | "unknown";
@@ -103,112 +104,29 @@ export async function viewTables(dbConfig: DBConfigProps) {
 
       let tableLoop = true;
       let currentPage = 1;
+      let currentWhere = "";
       const limit = 50;
       
       while (tableLoop) {
+        console.clear();
         const offset = (currentPage - 1) * limit;
         const schema = await adapter.getSchema(selectedTable);
         const colNames = schema.map(c => c.name);
         
-        const data = await adapter.getData(selectedTable, limit, offset);
+        let data;
+        try {
+          data = await adapter.getData(selectedTable, limit, offset, currentWhere);
+        } catch (e: any) {
+          console.log(pc.red(`\nError fetching data: ${e.message}\n`));
+          currentWhere = "";
+          const { input } = await import("@inquirer/prompts");
+          await input({ message: "Click Enter to continue..." });
+          continue;
+        }
         const rows = data.rows;
 
-        // 1. Calculate column widths with MAX_COL_WIDTH cap of 30 characters
-        const MAX_COL_WIDTH = 30;
-        const colWidths: Record<string, number> = {};
-        let totalMinWidth = 0;
-        for (const col of colNames) {
-          let maxValLength = col.length;
-          for (const row of rows) {
-            const valStr = String((row as any)[col] ?? "");
-            if (valStr.length > maxValLength) {
-              maxValLength = valStr.length;
-            }
-          }
-          const finalW = Math.max(
-            col.length,
-            Math.min(MAX_COL_WIDTH, maxValLength),
-          );
-          colWidths[col] = finalW;
-          totalMinWidth += finalW;
-        }
-
-        // 2. Calculate dynamic terminalWidth (minimum 74 characters)
-        const dividerWidths = 3 * (colNames.length - 1);
-        const dynamicWidth = totalMinWidth + dividerWidths + 4;
-        const currentTerminalWidth = Math.max(74, dynamicWidth);
-        const availableTextWidth = currentTerminalWidth - 4 - dividerWidths;
-
-        // Distribute remaining spaces to the last column
-        if (totalMinWidth < availableTextWidth && colNames.length > 0) {
-          const lastCol = colNames[colNames.length - 1];
-          colWidths[lastCol] += availableTextWidth - totalMinWidth;
-        }
-
-        // Helper to truncate long cell values
-        const truncate = (str: string, maxLen: number) => {
-          if (str.length > maxLen) {
-            return str.slice(0, maxLen - 3) + "...";
-          }
-          return str;
-        };
-
-        // 3. Draw outer Box Header with TableName (rows count)
         const detailHeaderTitle = ` ${selectedTable} (Page ${currentPage}) `;
-        const detailDashes = "═".repeat(currentTerminalWidth - 2);
-        console.log(pc.cyan(`\n╔${detailDashes}╗`));
-        const detailSpacesNeeded =
-          currentTerminalWidth - 2 - detailHeaderTitle.length;
-        const detailLeftSpace = Math.max(0, Math.floor(detailSpacesNeeded / 2));
-        const detailRightSpace = Math.max(
-          0,
-          detailSpacesNeeded - detailLeftSpace,
-        );
-        const detailTitleContent =
-          " ".repeat(detailLeftSpace) +
-          pc.bold(pc.white(detailHeaderTitle)) +
-          " ".repeat(detailRightSpace);
-        console.log(pc.cyan("║") + detailTitleContent + pc.cyan("║"));
-        console.log(pc.cyan(`╠${"═".repeat(currentTerminalWidth - 2)}╣`));
-
-        // 4. Draw Table Column Headers inside outer borders
-        const headerRow = colNames
-          .map((col) => pc.bold(pc.white(truncate(col, colWidths[col]).padEnd(colWidths[col]))))
-          .join(pc.cyan(" ║ "));
-        console.log(
-          pc.cyan("║ ") + headerRow + pc.cyan(" ║"),
-        );
-        console.log(pc.cyan(`╠${"═".repeat(currentTerminalWidth - 2)}╣`));
-
-        // 5. Draw Table Data Rows inside outer borders
-        if (rows.length === 0) {
-          const emptyMsg = "No records found";
-          const emptySpaces = currentTerminalWidth - 4 - emptyMsg.length;
-          const leftPad = Math.max(0, Math.floor(emptySpaces / 2));
-          const rightPad = Math.max(0, emptySpaces - leftPad);
-          console.log(
-            pc.cyan("║ ") +
-              " ".repeat(leftPad) +
-              pc.yellow(emptyMsg) +
-              " ".repeat(rightPad) +
-              pc.cyan(" ║"),
-          );
-        } else {
-          for (const row of rows) {
-            const rowContent = colNames
-              .map((col) =>
-                pc.white(truncate(
-                  String((row as any)[col] ?? ""),
-                  colWidths[col],
-                ).padEnd(colWidths[col])),
-              )
-              .join(pc.cyan(" ║ "));
-            console.log(pc.cyan("║ ") + rowContent + pc.cyan(" ║"));
-          }
-        }
-
-        console.log(pc.cyan(`╚${"═".repeat(currentTerminalWidth - 2)}╝`));
-        console.log();
+        drawTable(colNames, rows, { title: detailHeaderTitle, maxColWidth: 30 });
 
         const hasNextPage = rows.length === limit;
         const hasPrevPage = currentPage > 1;
@@ -216,6 +134,12 @@ export async function viewTables(dbConfig: DBConfigProps) {
           { name: "Add Data", value: "add" },
           { name: "Edit Data", value: "edit" },
           { name: "Delete Data", value: "delete" },
+          new Separator(),
+          { name: "Search Data", value: "search" },
+          { name: currentWhere ? "Clear Search" : pc.dim("Clear Search (disabled)"), value: currentWhere ? "clear_search" : "noop" },
+          new Separator(),
+          { name: "Export to CSV", value: "exportCsv" },
+          { name: "Export to JSON", value: "exportJson" },
           new Separator(),
         ];
         if (hasPrevPage) actionChoices.push({ name: "Previous Page", value: "prev" });
@@ -250,9 +174,81 @@ export async function viewTables(dbConfig: DBConfigProps) {
           currentPage++;
           continue;
         }
+        if (action === "noop") {
+          continue;
+        }
 
         if (action === "BACK") {
           tableLoop = false;
+          continue;
+        }
+
+        if (action === "clear_search") {
+          currentWhere = "";
+          currentPage = 1;
+          continue;
+        }
+
+        if (action === "search") {
+          const { input } = await import("@inquirer/prompts");
+          const searchInput = await input({
+            message: "Enter Search (e.g. `age > 18` or `John` for fuzzy search):"
+          });
+          const searchVal = searchInput.trim();
+          if (searchVal) {
+            // Check if it looks like a SQL condition (contains =, >, <, LIKE, etc.)
+            const isSqlCondition = /[=<>]|LIKE|IN|AND|OR/i.test(searchVal);
+            if (isSqlCondition) {
+              currentWhere = searchVal;
+            } else {
+              // Fuzzy search across all string columns
+              const strCols = schema.filter(c => c.type.toLowerCase().includes("char") || c.type.toLowerCase().includes("text"));
+              if (strCols.length > 0) {
+                // If dialect is Postgres, ILIKE is better, but LIKE is standard. We will use LIKE for simplicity, or ILIKE for PG.
+                const likeOp = dbConfig.type === "postgres" ? "ILIKE" : "LIKE";
+                const conditions = strCols.map(c => `"${c.name}" ${likeOp} '%${searchVal.replace(/'/g, "''")}%'`);
+                currentWhere = conditions.join(" OR ");
+              } else {
+                currentWhere = `"${schema[0].name}" = '${searchVal}'`; // fallback
+              }
+            }
+            currentPage = 1;
+          }
+          continue;
+        }
+
+        if (action === "exportCsv" || action === "exportJson") {
+          try {
+            console.log(pc.yellow("\nExporting data..."));
+            const allData = await adapter.getData(selectedTable, 9999999, 0, currentWhere);
+            const fs = await import("fs/promises");
+            const path = await import("path");
+            
+            const exportDir = path.join(process.cwd(), "terdb_exports");
+            await fs.mkdir(exportDir, { recursive: true });
+            
+            if (action === "exportCsv") {
+              const headers = allData.columns.join(",") + "\n";
+              const rowsStr = allData.rows.map((r: any) => {
+                return allData.columns.map(c => {
+                  const val = String(r[c] ?? "").replace(/"/g, '""');
+                  return `"${val}"`;
+                }).join(",");
+              }).join("\n");
+              
+              const fp = path.join(exportDir, `${selectedTable}.csv`);
+              await fs.writeFile(fp, headers + rowsStr, "utf-8");
+              console.log(pc.green(`\nExported to ${fp}`));
+            } else {
+              const fp = path.join(exportDir, `${selectedTable}.json`);
+              await fs.writeFile(fp, JSON.stringify(allData.rows, null, 2), "utf-8");
+              console.log(pc.green(`\nExported to ${fp}`));
+            }
+          } catch (e: any) {
+             console.log(pc.red(`\nExport Error: ${e.message}`));
+          }
+          const { input } = await import("@inquirer/prompts");
+          await input({ message: "Click Enter to continue..." });
           continue;
         }
 

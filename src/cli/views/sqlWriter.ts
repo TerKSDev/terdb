@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { input } from "@inquirer/prompts";
 import pc from "picocolors";
-import { DBConfig } from "../core/types.js";
-import { createDBAdapter } from "../core/factory.js";
+import { DBConfig } from "../../core/types.js";
+import { createDBAdapter } from "../../core/factory.js";
 
 export async function runSqlWriter(dbConfig: DBConfig) {
   console.log(

@@ -1,8 +1,8 @@
 import { select, input } from "@inquirer/prompts";
 import pc from "picocolors";
-import { detectDatabase, saveDatabaseUrl } from "../core/loader.js";
-import { DBConfig } from "../core/types.js";
-import { createDBAdapter } from "../core/factory.js";
+import { detectDatabase, saveDatabaseUrl } from "../../core/loader.js";
+import { DBConfig } from "../../core/types.js";
+import { createDBAdapter } from "../../core/factory.js";
 
 export async function runSetup(currentConfig: DBConfig): Promise<DBConfig> {
   const setupMethod = await select({

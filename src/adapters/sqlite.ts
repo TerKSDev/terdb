@@ -1,5 +1,4 @@
 import type { DatabaseSync } from "node:sqlite";
-import fs from "node:fs";
 import { DBAdapter, ColumnSchema } from "../core/types.js";
 
 export class SqliteAdapter implements DBAdapter {
@@ -19,7 +18,7 @@ export class SqliteAdapter implements DBAdapter {
       const sqlite = await import("node:" + "sqlite");
       this.db = new sqlite.DatabaseSync(this.dbPath);
     }
-    return this.db;
+    return this.db!;
   }
 
   async getTables(): Promise<string[]> {
@@ -59,7 +58,8 @@ export class SqliteAdapter implements DBAdapter {
   async getData(
     tableName: string,
     limit: number = 50,
-    offset: number = 0
+    offset: number = 0,
+    whereClause?: string
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const db = await this.getDb();
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tableName)) {
@@ -69,9 +69,38 @@ export class SqliteAdapter implements DBAdapter {
     const schema = await this.getSchema(tableName);
     const columns = schema.map((col) => col.name);
 
-    const dataQuery = db.prepare(`SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`);
+    let sql = `SELECT * FROM "${tableName}"`;
+    if (whereClause) {
+      sql += ` WHERE ${whereClause}`;
+    }
+    sql += ` LIMIT ${limit} OFFSET ${offset}`;
+
+    const dataQuery = db.prepare(sql);
     const rows = dataQuery.all() as Record<string, any>[];
     return { columns, rows };
+  }
+
+  async query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
+    const db = await this.getDb();
+    const query = db.prepare(sql);
+    // Node SQLite DatabaseSync only has `.all()` for fetching rows.
+    // If it's a mutation (INSERT/UPDATE/DELETE), .all() will throw, so we should check.
+    // However, the REPL might accept anything. Let's try .all(), fallback to .run()/.exec() if it fails?
+    // Wait, `.all()` works for SELECT. If it's not a SELECT, we can use `.run()`.
+    const isSelect = sql.trim().toUpperCase().startsWith("SELECT") || sql.trim().toUpperCase().startsWith("PRAGMA");
+    if (isSelect) {
+      const rows = query.all() as Record<string, any>[];
+      let columns: string[] = [];
+      if (rows.length > 0) {
+        columns = Object.keys(rows[0]);
+      } else {
+        // We cannot reliably get columns from an empty result set in basic node:sqlite yet without PRAGMA or parsing.
+      }
+      return { columns, rows };
+    } else {
+      query.run();
+      return { columns: ["Result"], rows: [{ Result: "Success" }] };
+    }
   }
 
   async executeSql(sql: string): Promise<void> {

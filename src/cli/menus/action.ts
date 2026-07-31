@@ -33,6 +33,12 @@ export const selectAction = async (dbConfig: DBConfig) =>
         disabled: dbConfig.type === "unknown",
       },
       {
+        name: " Interactive SQL REPL",
+        value: "repl",
+        description: "Execute arbitrary SQL queries interactively.",
+        disabled: dbConfig.type === "unknown",
+      },
+      {
         name:
           dbConfig.type === "unknown"
             ? " Setup Connection"
