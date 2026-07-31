@@ -1,62 +1,105 @@
-<h1 align="center">TerDB</h1>
+# 🌟 TerDB - The Ultimate Zero-Dependency Database CLI & TUI
 
-<p align="center">
-  <strong>A lightweight, interactive TUI database client for the modern terminal.</strong>
-</p>
+**TerDB** is a lightning-fast, zero-dependency Database Manager designed entirely for your terminal. It supports **SQLite**, **PostgreSQL**, and **MySQL**.
 
-<p align="center">
-  <img src="https://img.shields.io/npm/v/@terks.dev/terdb" alt="NPM Version" />
-  <img src="https://img.shields.io/badge/Node-%3E%3D22.0.0-blue" alt="Node Version" />
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
-</p>
-
----
-
-**TerDB** is a fully interactive, beautifully designed Terminal User Interface (TUI) for managing your databases. Forget about remembering complex SQL commands or downloading heavy GUI applications. TerDB brings the power of an intuitive database editor right into your terminal.
+Say goodbye to heavy GUI tools like DBeaver or TablePlus. TerDB allows you to instantly view, edit, query, backup, and visually diagram your databases right from your CLI!
 
 ## ✨ Features
 
-- 🚀 **Zero Install Needed**: Run it instantly with `npx @terks.dev/terdb`.
-- 🔌 **Universal Database Support**: Natively supports **PostgreSQL**, **MySQL**, and **SQLite**.
-- 🛠 **Table Builder Wizard**: A step-by-step visual ERD-like builder to create tables effortlessly (Supports `AutoInc`, `Nullable`, `Timestamps`, and more).
-- 📝 **Interactive CRUD Editor**: Add, edit, and delete data with a smart step-by-step interface. Auto-detects Primary Keys and types!
-- ⚡ **Expert Mode**: Load and execute `.sql` or `.md` files directly.
-- 📦 **Smart Pagination**: View thousands of rows safely without lagging your terminal.
+- **📱 Interactive TUI**: A beautiful, mouse-free Terminal User Interface.
+- **⚡ Zero Dependencies**: Blazing fast, runs instantly via `npx`.
+- **🛠️ Multi-Database Support**: Connects seamlessly to SQLite, PostgreSQL, and MySQL.
+- **📦 Smart Data Importer & Exporter**: Import CSV/JSON safely, or export your tables in seconds.
+- **🌱 Intelligent Data Seeder**: Automatically generates realistic fake data (emails, phones, dates) to populate your tables for testing.
+- **🗺️ ER Diagram Generator**: Scans your database and generates a Mermaid ER diagram that can be instantly imported into Draw.io or viewed on GitHub!
+- **🧩 TypeScript Types Generator**: Instantly generate TypeScript interfaces (`.d.ts`) directly from your database schema!
 
 ## 🚀 Quick Start
 
-You don't even need to install it. Just run:
+You don't need to install anything. Just run:
 
 ```bash
 npx @terks.dev/terdb
 ```
+TerDB will automatically scan your project for a `.env` file containing a `DATABASE_URL` (e.g., `DATABASE_URL=postgres://user:pass@localhost:5432/mydb`). If it doesn't find one, it will launch a setup wizard to help you connect!
 
-TerDB will automatically scan your directory for a `.env` file containing database credentials (`DATABASE_URL`, `DB_URL`, etc.) or `.sqlite`/`.db` files, and connect instantly!
+You can also pass a connection string directly:
+```bash
+npx @terks.dev/terdb "mysql://user:pass@localhost:3306/mydb"
+```
 
-## ⚙️ Manual Setup
+---
 
-If you prefer to set up the connection manually:
+## 🛠️ Powerful Subcommands
 
-1. Run `npx @terks.dev/terdb`
-2. Select **"Setup Database Connection"**
-3. Choose your database type (SQLite, Postgres, or MySQL)
-4. Enter your connection string (e.g., `postgresql://user:password@localhost:5432/mydb`)
-5. TerDB will save it securely to your local `.env` file for future use.
+TerDB is not just a TUI; it comes with powerful quick-commands for your CI/CD pipelines or rapid local development.
 
-## 🕹️ Usage
+### 🔌 1. Initialize a Local Database
+Don't have a database yet? TerDB can create one for you!
+```bash
+npx @terks.dev/terdb init sqlite
+npx @terks.dev/terdb init postgres
+npx @terks.dev/terdb init mysql
+```
+*(For Postgres and MySQL, it connects to your local server and runs `CREATE DATABASE`, then automatically drops a configured `.env` file in your workspace!)*
 
-Once connected, use your **Arrow Keys** and **Enter** to navigate the stunning UI.
+### 🔍 2. Quick Query
+Run SQL instantly and get a beautifully formatted ASCII table result.
+```bash
+npx @terks.dev/terdb query "SELECT * FROM users WHERE age > 18"
+```
 
-### Database Editor
-Select any table to view its contents in a perfectly aligned, beautifully bordered ASCII table. Press `Enter` to access the Data Operations menu:
-- **Add Data**: Interactive prompts for every column (auto-skips Auto-Increment Primary Keys!).
-- **Edit Data**: Select the record and column to surgically update values.
-- **Delete Data**: Safely delete records by providing their ID.
+### 📥 3. Import Data
+Import massive CSV or JSON files safely. TerDB uses smart chunking to prevent memory overload.
+```bash
+npx @terks.dev/terdb import data.csv --table users
+```
 
-### Table Builder
-Need a new table? Use the **Wizard (Beginner)** mode.
-It will ask you for column names, types (Integer, Text, Boolean, Decimal, DateTime), and constraints. It even generates the exact `CREATE TABLE` syntax tailored to your specific database dialect!
+### 📤 4. Export Data
+Export your tables to CSV or JSON.
+```bash
+npx @terks.dev/terdb export users --format csv
+npx @terks.dev/terdb export * --format json --schema-only
+```
 
-## 📜 License
+### 🌱 5. Generate Fake Data (Seed)
+Need 500 fake users for testing? Easy. TerDB intelligently analyzes your column names and types to generate realistic data.
+```bash
+npx @terks.dev/terdb seed users 500
+```
 
-MIT License. Crafted with ❤️ by TerKSDev.
+### 🗺️ 6. Generate ER Diagram
+Automatically generates a `terdb_schema.md` containing a Mermaid.js diagram of your database.
+```bash
+npx @terks.dev/terdb diagram
+```
+*Tip: Paste the output into Draw.io (Arrange > Insert > Advanced > Mermaid) for a stunning visual layout!*
+
+### 🧩 7. Generate TypeScript Interfaces
+Tired of manually writing types? Auto-generate them from your schema!
+```bash
+npx @terks.dev/terdb generate-types
+```
+*(Outputs `terdb-types.d.ts` with all your table interfaces)*
+
+### 📜 8. Execute SQL Script
+Run entire `.sql` files instantly. Perfect for database migrations.
+```bash
+npx @terks.dev/terdb exec ./migrations/init.sql
+```
+
+### 📦 9. Database Backup
+Backup your entire database. For SQLite, it performs a secure binary copy. For Postgres/MySQL, it dumps schema and data into JSON.
+```bash
+npx @terks.dev/terdb backup
+```
+
+## ❓ Help
+To view all commands and options:
+```bash
+npx @terks.dev/terdb --help
+```
+
+---
+
+**Built with ❤️ for Developers who love the Terminal.**

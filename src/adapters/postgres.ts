@@ -103,4 +103,19 @@ export class PostgresAdapter implements DBAdapter {
       this.connected = false;
     }
   }
+
+  async insert(tableName: string, rows: Record<string, any>[]): Promise<void> {
+    if (rows.length === 0) return;
+    await this.connectIfNecessary();
+    const cols = Object.keys(rows[0]);
+    // Postgres placeholder format is $1, $2, $3 etc.
+    // For batch inserts, we can build a long VALUES string or execute sequentially.
+    // Executing sequentially is easier to write without dealing with complex $n indexing.
+    for (const row of rows) {
+      const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+      const sql = `INSERT INTO "${tableName}" ("${cols.join('", "')}") VALUES (${placeholders})`;
+      const values = cols.map(c => row[c]);
+      await this.client.query(sql, values);
+    }
+  }
 }

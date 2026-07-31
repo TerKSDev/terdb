@@ -114,4 +114,17 @@ export class SqliteAdapter implements DBAdapter {
       this.db = null;
     }
   }
+
+  async insert(tableName: string, rows: Record<string, any>[]): Promise<void> {
+    if (rows.length === 0) return;
+    const db = await this.getDb();
+    const cols = Object.keys(rows[0]);
+    const placeholders = cols.map(() => "?").join(", ");
+    const sql = `INSERT INTO "${tableName}" ("${cols.join('", "')}") VALUES (${placeholders})`;
+    const stmt = db.prepare(sql);
+    for (const row of rows) {
+      const values = cols.map(c => row[c]);
+      stmt.run(...values);
+    }
+  }
 }

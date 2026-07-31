@@ -95,4 +95,16 @@ export class MysqlAdapter implements DBAdapter {
       this.pool = null;
     }
   }
+
+  async insert(tableName: string, rows: Record<string, any>[]): Promise<void> {
+    if (rows.length === 0) return;
+    const pool = await this.getPool();
+    const cols = Object.keys(rows[0]);
+    for (const row of rows) {
+      const placeholders = cols.map(() => "?").join(", ");
+      const sql = `INSERT INTO \`${tableName}\` (\`${cols.join('`, `')}\`) VALUES (${placeholders})`;
+      const values = cols.map(c => row[c]);
+      await pool.query(sql, values);
+    }
+  }
 }

@@ -1,8 +1,7 @@
 import { select, Separator } from "@inquirer/prompts";
 import pc from "picocolors";
-import { DBConfig } from "../../core/types.js";
 
-export const selectBuild = async (dbConfig: DBConfig) =>
+export const selectBuild = async () =>
   await select({
     message: "What method you want to use to build database table(s)?",
     theme: {

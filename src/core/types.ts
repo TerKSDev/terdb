@@ -17,6 +17,7 @@ export interface DBAdapter {
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
   query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }>;
   executeSql(sql: string): Promise<void>;
+  insert(tableName: string, rows: Record<string, any>[]): Promise<void>;
   close(): Promise<void>;
 }
 

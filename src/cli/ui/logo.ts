@@ -32,13 +32,17 @@ export function printLogo() {
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const terminalWidth = 74;
-  const headerTitle = " Lightweight Interactive TUI Database Client  •  v1.0.0-beta.1 ";
+  const headerTitle =
+    " Lightweight Interactive TUI Database Client  •  v1.0.0-beta.2 ";
   const dashes = "═".repeat(terminalWidth - 2);
   console.log(pc.cyan(`\n╔${dashes}╗`));
   const spacesNeeded = terminalWidth - 2 - headerTitle.length;
   const leftSpace = Math.max(0, Math.floor(spacesNeeded / 2));
   const rightSpace = Math.max(0, spacesNeeded - leftSpace);
-  const titleContent = " ".repeat(leftSpace) + pc.bold(pc.white(headerTitle)) + " ".repeat(rightSpace);
+  const titleContent =
+    " ".repeat(leftSpace) +
+    pc.bold(pc.white(headerTitle)) +
+    " ".repeat(rightSpace);
   console.log(pc.cyan("║") + titleContent + pc.cyan("║"));
   console.log(pc.cyan(`╠${"═".repeat(terminalWidth - 2)}╣`));
 
@@ -49,16 +53,19 @@ export function printDashboard(dbConfig: DBConfigProps) {
 
   if (dbConfig.type === "unknown") {
     statusVal = pc.red("Disconnected");
-    sourceVal = pc.dim("No configuration found. Please run check to configure.");
+    sourceVal = pc.dim(
+      "No configuration found. Please run check to configure.",
+    );
   } else {
     statusVal = pc.green("Connected");
     dbTypeVal = dbConfig.type.toUpperCase();
     targetVal = dbConfig.targetUrl;
-    sourceVal = dbConfig.source === ".env"
-      ? "Loaded from project .env file"
-      : dbConfig.source === "auto-detected"
-      ? "Auto-detected local SQLite file"
-      : "Manual connection config";
+    sourceVal =
+      dbConfig.source === ".env"
+        ? "Loaded from project .env file"
+        : dbConfig.source === "auto-detected"
+          ? "Auto-detected local SQLite file"
+          : "Manual connection config";
   }
 
   const printLine = (label: string, value: string) => {
@@ -71,9 +78,17 @@ export function printDashboard(dbConfig: DBConfigProps) {
 
   printLine("Status", statusVal);
   printLine("Database", dbTypeVal);
-  printLine("Target", targetVal.length > 45 ? "..." + targetVal.slice(-42) : targetVal);
+  printLine(
+    "Target",
+    targetVal.length > 45 ? "..." + targetVal.slice(-42) : targetVal,
+  );
   printLine("Source", sourceVal);
-  printLine("Working Dir", process.cwd().length > 45 ? "..." + process.cwd().slice(-42) : process.cwd());
+  printLine(
+    "Working Dir",
+    process.cwd().length > 45
+      ? "..." + process.cwd().slice(-42)
+      : process.cwd(),
+  );
 
   console.log(pc.cyan(`╚${"═".repeat(terminalWidth - 2)}╝`));
 }
