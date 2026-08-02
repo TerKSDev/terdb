@@ -21,12 +21,12 @@ export function printLogo() {
   console.log(
     "\n\n\n" +
       pc.bold(
-          l1("\t\t     ██████╗  ██████╗  ██╗ ██╗  ██╗\n") +
-          l2("\t\t     ██╔══██╗ ██╔══██╗ ██║ ╚██╗██╔╝\n") +
-          l3("\t\t     ██║  ██║ ██████╔╝ ██║  ╚███╔╝ \n") +
-          l4("\t\t     ██║  ██║ ██╔══██╗ ██║  ██╔██╗ \n") +
-          l5("\t\t     ██████╔╝ ██║  ██║ ██║ ██╔╝ ██╗\n") +
-          l6("\t\t     ╚═════╝  ╚═╝  ╚═╝ ╚═╝ ╚═╝  ╚═╝"),
+        l1("\t\t██████╗  ██████╗  ██╗ ██╗  ██╗ ██╗  ██████╗ \n") +
+          l2("\t\t██╔══██╗ ██╔══██╗ ██║ ╚██╗██╔╝ ██║ ██╔═══██╗\n") +
+          l3("\t\t██║  ██║ ██████╔╝ ██║  ╚███╔╝  ██║ ██║   ██║\n") +
+          l4("\t\t██║  ██║ ██╔══██╗ ██║  ██╔██╗  ██║ ██║   ██║\n") +
+          l5("\t\t██████╔╝ ██║  ██║ ██║ ██╔╝ ██╗ ██║ ╚██████╔╝\n") +
+          l6("\t\t╚═════╝  ╚═╝  ╚═╝ ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═════╝"),
       ),
   );
 }
@@ -68,7 +68,7 @@ export function printCustomDashboard(
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const headerTitle =
-    " Lightweight Interactive TUI Database Client  •  v1.0.1-beta.4 ";
+    " Lightweight Interactive TUI Database Client  •  v1.1.1 ";
 
   let dbTypeVal = "None";
   let targetVal = "-";

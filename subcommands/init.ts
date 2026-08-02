@@ -151,7 +151,7 @@ export async function runInitCommand(args: string[]) {
         }
         console.log(
           pc.dim(
-            `(Alternatively, you can run 'drix init sqlite' for a zero-install local database!)`,
+            `(Alternatively, you can run 'drixio init sqlite' for a zero-install local database!)`,
           ),
         );
       }
@@ -194,7 +194,7 @@ export async function runInitCommand(args: string[]) {
   console.log(pc.green(`\n🎉 Initialization Complete!`));
   console.log(
     pc.white(
-      `You can now run ${pc.bold("npx @terks.dev/drix")} to manage it!`,
+      `You can now run ${pc.bold("npx drixio")} to manage it!`,
     ),
   );
 

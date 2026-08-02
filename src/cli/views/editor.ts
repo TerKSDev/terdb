@@ -236,7 +236,7 @@ export async function viewTables(dbConfig: DBConfigProps) {
             const fs = await import("fs/promises");
             const path = await import("path");
 
-            const exportDir = path.join(process.cwd(), "drix_exports");
+            const exportDir = path.join(process.cwd(), "drixio_exports");
             await fs.mkdir(exportDir, { recursive: true });
 
             if (action === "exportCsv") {

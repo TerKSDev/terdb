@@ -2,11 +2,8 @@ import pc from "picocolors";
 import { printLogo, printDashboard } from "./ui/logo.js";
 import { detectDatabase } from "../core/loader.js";
 import { viewTables } from "./views/editor.js";
-import { runWizard } from "./wizards/buildTable.js";
 import { runSetup } from "./wizards/setupConn.js";
-import { runSqlWriter } from "./views/sqlWriter.js";
 import { selectAction } from "./menus/action.js";
-import { selectTableManager } from "./menus/tableManager.js";
 import { runRepl } from "./views/repl.js";
 import { parseArgs } from "node:util";
 
@@ -38,9 +35,9 @@ export async function main() {
   });
 
   if (values.help) {
-    console.log(pc.cyan(`\nDrix CLI - Modern Database Manager\n`));
+    console.log(pc.cyan(`\nDrixio CLI - Modern Database Manager\n`));
     console.log(
-      `${pc.bold("Usage:")} npx @terks.dev/drix [command] [options]\n`,
+      `${pc.bold("Usage:")} npx drixio [command] [options]\n`,
     );
     console.log(`${pc.bold("Commands:")}`);
     console.log(`  ${pc.green("query")} "<sql>"         Run a quick SQL query`);
@@ -78,7 +75,7 @@ export async function main() {
     console.log(`  --schema-only         Export schema without data`);
     console.log(`  --table <name>        Specify table for import`);
     console.log(
-      `\nIf you don't provide a command, Drix will launch the Interactive UI!`,
+      `\nIf you don't provide a command, Drixio will launch the Interactive UI!`,
     );
     process.exit(0);
   }
@@ -176,7 +173,7 @@ export async function main() {
         if (dbConfig.type === "unknown") {
           console.log(
             pc.yellow(
-              `\nNo database connection found. Please run ${pc.bold("drix check")} first.`,
+              `\nNo database connection found. Please run ${pc.bold("drixio check")} first.`,
             ),
           );
           await waitForEnter();
@@ -199,7 +196,7 @@ export async function main() {
         break;
       case "exit":
         running = false;
-        console.log(pc.dim("\nThanks for using Drix. Goodbye!"));
+        console.log(pc.dim("\nThanks for using Drixio. Goodbye!"));
         break;
     }
   }

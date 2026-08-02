@@ -45,7 +45,7 @@ export async function runExportCommand(dbConfig: DBConfig, args: string[], optio
     });
   }
 
-  const exportDir = path.join(process.cwd(), "drix_exports");
+  const exportDir = path.join(process.cwd(), "drixio_exports");
   await fs.mkdir(exportDir, { recursive: true });
 
   const tablesToExport = tableName === "*" ? await adapter.getTables() : [tableName];
