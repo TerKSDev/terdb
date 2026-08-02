@@ -53,7 +53,7 @@ export const selectAction = async (dbConfig: DBConfig) =>
       {
         name: pc.dim(" Exit"),
         value: "exit",
-        description: "Exit the TerDB CLI application.",
+        description: "Exit the Drix CLI application.",
       },
     ],
   });

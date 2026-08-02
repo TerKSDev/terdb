@@ -38,9 +38,9 @@ export async function main() {
   });
 
   if (values.help) {
-    console.log(pc.cyan(`\nTerDB CLI - Modern Database Manager\n`));
+    console.log(pc.cyan(`\nDrix CLI - Modern Database Manager\n`));
     console.log(
-      `${pc.bold("Usage:")} npx @terks.dev/terdb [command] [options]\n`,
+      `${pc.bold("Usage:")} npx @terks.dev/drix [command] [options]\n`,
     );
     console.log(`${pc.bold("Commands:")}`);
     console.log(`  ${pc.green("query")} "<sql>"         Run a quick SQL query`);
@@ -78,7 +78,7 @@ export async function main() {
     console.log(`  --schema-only         Export schema without data`);
     console.log(`  --table <name>        Specify table for import`);
     console.log(
-      `\nIf you don't provide a command, TerDB will launch the Interactive UI!`,
+      `\nIf you don't provide a command, Drix will launch the Interactive UI!`,
     );
     process.exit(0);
   }
@@ -176,7 +176,7 @@ export async function main() {
         if (dbConfig.type === "unknown") {
           console.log(
             pc.yellow(
-              `\nNo database connection found. Please run ${pc.bold("terdb check")} first.`,
+              `\nNo database connection found. Please run ${pc.bold("drix check")} first.`,
             ),
           );
           await waitForEnter();
@@ -199,7 +199,7 @@ export async function main() {
         break;
       case "exit":
         running = false;
-        console.log(pc.dim("\nThanks for using TerDB. Goodbye!"));
+        console.log(pc.dim("\nThanks for using Drix. Goodbye!"));
         break;
     }
   }

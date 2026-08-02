@@ -1,9 +1,9 @@
 {
-  "name": "@terks.dev/terdb",
-  "version": "1.0.1-beta.4",
+  "name": "drix",
+  "version": "1.1.0",
   "description": "A lightweight interactive TUI database client",
   "bin": {
-    "terdb": "dist/cli.js"
+    "drix": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -19,7 +19,7 @@
     "database",
     "tui",
     "cli",
-    "terdb"
+    "drix"
   ],
   "author": "TerKSDev",
   "license": "MIT",

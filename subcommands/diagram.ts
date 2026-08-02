@@ -46,7 +46,7 @@ ${mermaidCode}
 \`\`\`
 `;
 
-    const outPath = path.resolve(process.cwd(), "terdb_schema.md");
+    const outPath = path.resolve(process.cwd(), "drix_schema.md");
     await fs.writeFile(outPath, markdownOutput.trim(), "utf-8");
 
     console.log(pc.green(`\n✔ Diagram generated successfully!`));

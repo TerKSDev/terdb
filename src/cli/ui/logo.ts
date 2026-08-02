@@ -10,31 +10,23 @@ export interface DBConfigProps {
 const rgb = (r: number, g: number, b: number) => (text: string) =>
   `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
 
-const l1 = rgb(46, 204, 113); // Bright Green
-const l2 = rgb(26, 188, 156); // Teal / Mint
-const l3 = rgb(0, 188, 212); // Cyan
-const l4 = rgb(52, 152, 219); // Light Blue
-const l5 = rgb(174, 214, 241); // Icy Blue / White
-const l6 = rgb(244, 246, 247); // Off-white
+const l1 = rgb(0, 255, 255);   // Pure Electric Cyan
+const l2 = rgb(0, 230, 245);   // Bright Cyan
+const l3 = rgb(0, 210, 235);   // Vivid Cyan
+const l4 = rgb(0, 188, 220);   // Medium Cyan
+const l5 = rgb(0, 168, 205);   // Cyan-Blue
+const l6 = rgb(0, 148, 188);   // Deep Cyan
 
 export function printLogo() {
   console.log(
     "\n\n\n" +
       pc.bold(
-        l1("             ████████╗  ███████╗  ██████╗   ██████╗   ██████╗ \n") +
-          l2(
-            "             ╚══██╔══╝  ██╔════╝  ██╔══██╗  ██╔══██╗  ██╔══██╗\n",
-          ) +
-          l3(
-            "                ██║     █████╗    ██████╔╝  ██║  ██║  ██████╔╝\n",
-          ) +
-          l4(
-            "                ██║     ██╔══╝    ██╔══██╗  ██║  ██║  ██╔══██╗\n",
-          ) +
-          l5(
-            "                ██║     ███████╗  ██║  ██║  ██████╔╝  ██████╔╝\n",
-          ) +
-          l6("                ╚═╝     ╚══════╝  ╚═╝  ╚═╝  ╚═════╝   ╚═════╝ "),
+          l1("\t\t     ██████╗  ██████╗  ██╗ ██╗  ██╗\n") +
+          l2("\t\t     ██╔══██╗ ██╔══██╗ ██║ ╚██╗██╔╝\n") +
+          l3("\t\t     ██║  ██║ ██████╔╝ ██║  ╚███╔╝ \n") +
+          l4("\t\t     ██║  ██║ ██╔══██╗ ██║  ██╔██╗ \n") +
+          l5("\t\t     ██████╔╝ ██║  ██║ ██║ ██╔╝ ██╗\n") +
+          l6("\t\t     ╚═════╝  ╚═╝  ╚═╝ ╚═╝ ╚═╝  ╚═╝"),
       ),
   );
 }
@@ -76,7 +68,7 @@ export function printCustomDashboard(
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const headerTitle =
-    " Lightweight Interactive TUI Database Client  •  v1.0.0-beta.4 ";
+    " Lightweight Interactive TUI Database Client  •  v1.0.1-beta.4 ";
 
   let dbTypeVal = "None";
   let targetVal = "-";

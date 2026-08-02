@@ -35,13 +35,13 @@ export async function runStudio(dbConfig: DBConfig) {
       const html = await fs.readFile(indexPath, "utf-8");
       return c.html(html);
     } catch (e) {
-      return c.text("TerDB Studio static files not found. Did you run build?", 404);
+      return c.text("Drix Studio static files not found. Did you run build?", 404);
     }
   });
 
   const port = 3000;
 
-  console.log(pc.cyan(`\nStarting TerDB Studio on http://localhost:${port}...`));
+  console.log(pc.cyan(`\nStarting Drix Studio on http://localhost:${port}...`));
   console.log(pc.dim(`Press Ctrl+C to stop the server.\n`));
 
   serve({

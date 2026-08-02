@@ -3,7 +3,7 @@ import { main } from "../src/cli/main.js";
 
 main().catch((error) => {
   if (error.name === "ExitPromptError") {
-    console.log("\n Exit TerDB.");
+    console.log("\n Exit Drix.");
     process.exit(0);
   }
   console.error("\n Error: ", error);

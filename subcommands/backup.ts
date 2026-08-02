@@ -11,7 +11,7 @@ export async function runBackupCommand(dbConfig: DBConfig) {
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const backupDir = path.join(process.cwd(), `terdb_backup_${timestamp}`);
+  const backupDir = path.join(process.cwd(), `drix_backup_${timestamp}`);
   
   console.log(pc.cyan(`\nStarting database backup...`));
   console.log(pc.dim(`Database: ${dbConfig.type}`));
