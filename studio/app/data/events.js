@@ -20,7 +20,60 @@ export function bindCellEditor(tableContainer, schema, columns) {
         : td.textContent;
 
     let inputEl;
-    if (isEnum) {
+    if (colSchema && colSchema.fkTarget) {
+      inputEl = document.createElement("select");
+      const loadingOpt = document.createElement("option");
+      loadingOpt.value = rawText;
+      loadingOpt.textContent = "Loading...";
+      inputEl.appendChild(loadingOpt);
+      
+      // Fetch FK options asynchronously
+      import("../../lib/api.js").then(({ executeRawQuery }) => {
+        const { table, column } = colSchema.fkTarget;
+        executeRawQuery(`SELECT * FROM "${table}" LIMIT 100`).then(res => {
+          if (res.success && res.data && res.data.rows) {
+            inputEl.innerHTML = ""; // clear loading
+            
+            // Add a null/empty option if nullable
+            if (colSchema.nullable) {
+              const emptyOpt = document.createElement("option");
+              emptyOpt.value = "";
+              emptyOpt.textContent = "-- None --";
+              inputEl.appendChild(emptyOpt);
+            }
+            
+            // Try to find a display column (e.g. name, title, label)
+            let displayCol = column;
+            if (res.data.columns) {
+              const possibleNames = ["name", "title", "label", "description"];
+              const found = res.data.columns.find(c => possibleNames.includes(c.toLowerCase()));
+              if (found) displayCol = found;
+            }
+            
+            res.data.rows.forEach(row => {
+              const val = String(row[column]);
+              const displayVal = displayCol !== column ? `${val} - ${row[displayCol]}` : val;
+              const opt = document.createElement("option");
+              opt.value = val;
+              opt.textContent = displayVal;
+              if (val === rawText) opt.selected = true;
+              inputEl.appendChild(opt);
+            });
+            
+            // If the current rawText isn't in the limit 100, add it manually
+            if (rawText && !res.data.rows.find(r => String(r[column]) === rawText)) {
+              const opt = document.createElement("option");
+              opt.value = rawText;
+              opt.textContent = `${rawText} (Not in limit)`;
+              opt.selected = true;
+              inputEl.appendChild(opt);
+            }
+          }
+        }).catch(err => {
+          loadingOpt.textContent = "Error loading options";
+        });
+      });
+    } else if (isEnum) {
       const enumMatch = colSchema.type.match(/enum\((.*?)\)/i);
       let options = [];
       if (enumMatch) {
@@ -88,7 +141,7 @@ export function bindCellEditor(tableContainer, schema, columns) {
 
     td.innerHTML = "";
     td.appendChild(inputEl);
-    if (typeUpper === "" || (!isEnum && !isDate && !isDateTime && !isBool)) {
+    if (typeUpper === "" || (!isEnum && !isDate && !isDateTime && !isBool && !(colSchema && colSchema.fkTarget))) {
       const expandBtn = document.createElement("span");
       expandBtn.className = "material-symbols-outlined cell-expand-btn";
       expandBtn.textContent = "open_in_full";

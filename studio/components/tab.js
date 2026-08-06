@@ -17,7 +17,7 @@ export const TabHTML = `
     <span class="material-symbols-outlined" id="schema-icon">
       grid_layout_side
     </span>
-    Schema (Structure)
+    Schema (Table)
   </button>
 
   <div style="flex: 1;"></div>

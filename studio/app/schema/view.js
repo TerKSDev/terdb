@@ -4,7 +4,7 @@ import { bindColumnResizer, bindCellSelection } from "../../components/grid.js";
 
 export { saveSchemaEdits } from "./core.js";
 
-export async function loadTableSchema(tableName, btnElement) {
+export async function loadTableSchema(tableName, btnElement, container = null) {
   const allBtns = document.querySelectorAll(".table-btn");
   allBtns.forEach((b) => b.classList.remove("active"));
   if (btnElement) btnElement.classList.add("active");
@@ -12,8 +12,8 @@ export async function loadTableSchema(tableName, btnElement) {
   const headerTableName = document.getElementById("table-name");
   if (headerTableName) headerTableName.textContent = tableName + " (Schema)";
 
-  const mainContent = document.getElementById("main-content");
-  mainContent.innerHTML = "<div style='padding:24px;'>Loading Schema...</div>";
+  const renderTarget = container || document.getElementById("main-content");
+  renderTarget.innerHTML = "<div style='padding:24px;'>Loading Schema...</div>";
 
   try {
     const res = await fetchTableSchema(tableName);
@@ -43,24 +43,28 @@ export async function loadTableSchema(tableName, btnElement) {
       } else {
         window.SchemaGrid.schema = schema;
       }
+      
+      if (window.TableStates && window.TableStates[tableName]) {
+        window.TableStates[tableName].schemaGrid = window.SchemaGrid;
+      }
 
-      mainContent.innerHTML = `
+      renderTarget.innerHTML = `
         <div class="toolbar">
           <div class="filter-group">
             <div class="filter-icon-container">
               <span class="material-symbols-outlined">search</span>
               <span>Search</span>
             </div>
-            <input type="text" id="schema-search-val" class="filter-input" placeholder="Search name or type..." style="width: 250px;" value="${window.SchemaGrid.filterText}" />
+            <input type="text" id="schema-search-val-${tableName}" class="filter-input" placeholder="Search name or type..." style="width: 250px;" value="${window.SchemaGrid.filterText}" />
           </div>
           <div style="flex:1;"></div>
-          <button id="btn-refresh-schema" title="Refresh Schema (F5)"><span class="material-symbols-outlined">refresh</span></button>
+          <button id="btn-refresh-schema-${tableName}" title="Refresh Schema (F5)"><span class="material-symbols-outlined">refresh</span></button>
         </div>
-        <div id="schema-grid-container" class="table-container"></div>
+        <div id="schema-grid-container-${tableName}" class="table-container"></div>
       `;
 
       window.renderSchemaGrid = () => {
-        const tableContainer = document.getElementById("schema-grid-container");
+        const tableContainer = document.getElementById(`schema-grid-container-${tableName}`);
         if (!tableContainer) return;
 
         let displaySchema = [...window.SchemaGrid.schema];
@@ -87,16 +91,17 @@ export async function loadTableSchema(tableName, btnElement) {
           });
         }
 
-        const columns = ["name", "type", "isPk", "nullable", "defaultValue"];
+        const columns = ["name", "type", "isPk", "nullable", "defaultValue", "index"];
         const columnLabels = [
           "Name",
           "Type",
           "PK/FK",
           "Nullable",
           "Default Value",
+          "Index",
         ];
 
-        let tableHtml = `<table class="data-table" id="schema-grid-table"><thead><tr><th class="row-header">#</th>`;
+        let tableHtml = `<table class="data-table" id="schema-grid-table-${tableName}"><thead><tr><th class="row-header">#</th>`;
         columns.forEach((cKey, i) => {
           let sortArrow = "";
           if (window.SchemaGrid.sortState.colKey === cKey) {
@@ -150,7 +155,7 @@ export async function loadTableSchema(tableName, btnElement) {
         tableContainer.innerHTML = tableHtml;
 
         document
-          .querySelectorAll("#schema-grid-table th.sortable")
+          .querySelectorAll(`#schema-grid-table-${tableName} th.sortable`)
           .forEach((th) => {
             th.onclick = (e) => {
               if (window.SchemaGrid.isResizing) return;
@@ -186,7 +191,7 @@ export async function loadTableSchema(tableName, btnElement) {
 
         bindCellSelection(
           tableContainer,
-          "schema-grid-table",
+          `schema-grid-table-${tableName}`,
           window.SchemaGrid,
           columns.length,
         );
@@ -195,7 +200,7 @@ export async function loadTableSchema(tableName, btnElement) {
 
       window.renderSchemaGrid();
 
-      const searchInput = document.getElementById("schema-search-val");
+      const searchInput = document.getElementById(`schema-search-val-${tableName}`);
       if (searchInput) {
         searchInput.addEventListener("input", (e) => {
           window.SchemaGrid.filterText = e.target.value;
@@ -210,7 +215,7 @@ export async function loadTableSchema(tableName, btnElement) {
         });
       }
 
-      const refreshBtn = document.getElementById("btn-refresh-schema");
+      const refreshBtn = document.getElementById(`btn-refresh-schema-${tableName}`);
       if (refreshBtn)
         refreshBtn.onclick = () => {
           const hasPending =
@@ -228,9 +233,9 @@ export async function loadTableSchema(tableName, btnElement) {
           loadTableSchema(tableName, btnElement);
         };
     } else {
-      mainContent.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
+      renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
     }
   } catch (err) {
-    mainContent.innerHTML = `<div style="padding:24px; color:red;">Failed to load schema: ${err.message}</div>`;
+    renderTarget.innerHTML = `<div style="padding:24px; color:red;">Failed to load schema: ${err.message}</div>`;
   }
 }

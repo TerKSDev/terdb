@@ -1,7 +1,9 @@
 export function getFilterQuery() {
-  const filterVal = document.getElementById("filter-val")?.value.trim();
-  const filterOp = document.getElementById("filter-op")?.value;
-  const filterCol = document.getElementById("filter-col")?.value;
+  const t = window.AppState?.currentTable;
+  if (!t) return "";
+  const filterVal = document.getElementById(`filter-val-${t}`)?.value.trim();
+  const filterOp = document.getElementById(`filter-op-${t}`)?.value;
+  const filterCol = document.getElementById(`filter-col-${t}`)?.value;
 
   let query = "";
   if (filterVal || filterOp === "IS NULL") {
@@ -12,7 +14,10 @@ export function getFilterQuery() {
       !safeVal.endsWith("'") &&
       isNaN(Number(safeVal))
     ) {
-      safeVal = `'${safeVal.replace(/'/g, "''")}'`;
+      const isRawSql = safeVal.toUpperCase().includes(" AND ") || safeVal.toUpperCase().includes(" OR ");
+      if (!isRawSql) {
+        safeVal = `'${safeVal.replace(/'/g, "''")}'`;
+      }
     }
     query = `"${filterCol}" ${filterOp} ${safeVal}`;
   }

@@ -15,7 +15,7 @@
   --ring-primary-2: 0 0 0 2px #2c68ec33;
   --font-inter: "Inter", sans-serif;
   --color-btn-active-text: var(--color-primary);
-  
+
   /* Grid Interactive States (Light) */
   --color-cell-range-bg: #dbeafe;
   --color-cell-edited-bg: #fffbeb;
@@ -40,7 +40,7 @@
   --color-border-soft: #1e293b;
   --ring-primary-2: 0 0 0 2px #3b82f633;
   --color-btn-active-text: #ffffff;
-  
+
   /* Grid Interactive States (Dark) */
   --color-cell-range-bg: rgba(59, 130, 246, 0.15); /* translucent primary */
   --color-cell-edited-bg: rgba(245, 158, 11, 0.15);
@@ -78,6 +78,7 @@ aside {
   width: 256px;
   height: 100vh;
   border-right: 1px var(--color-border) solid;
+  box-sizing: border-box;
 }
 
 #sidebar-header {
@@ -87,6 +88,7 @@ aside {
   padding: 0px 16px;
   height: 64px;
   border-bottom: 1px var(--color-border-soft) solid;
+  box-sizing: border-box;
 }
 
 #database-icon {
@@ -212,6 +214,7 @@ aside {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  letter-spacing: 0.5px;
 }
 
 .table-btn:hover {
@@ -502,6 +505,7 @@ header {
   padding: 0px 32px;
   font-size: 14px;
   font-weight: 300;
+  box-sizing: border-box;
 }
 
 #current-path {
@@ -830,7 +834,6 @@ header {
   cursor: cell;
 }
 
-
 .data-table th {
   background-color: var(--color-primary);
   font-weight: 600;
@@ -849,7 +852,9 @@ header {
 
 /* --- Data Grid Interactive States --- */
 .data-table td.cell-in-range {
-  background-color: var(--color-cell-range-bg); /* Light blue for multi-selection */
+  background-color: var(
+    --color-cell-range-bg
+  ); /* Light blue for multi-selection */
 }
 
 .data-table td.cell-in-range::after {
@@ -908,7 +913,9 @@ header {
 }
 
 .data-table td.cell-edited {
-  background-color: var(--color-cell-edited-bg); /* Light yellow for pending edit */
+  background-color: var(
+    --color-cell-edited-bg
+  ); /* Light yellow for pending edit */
   font-weight: bold;
   color: var(--color-cell-edited-text); /* Dark orange */
 }

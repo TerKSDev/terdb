@@ -160,6 +160,7 @@ export async function saveSchemaEdits() {
       td.classList.add("cell-error");
     });
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
@@ -188,7 +189,7 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
 
       if (idx === window.SchemaGrid.pendingInserts.length - 1) {
         window.SchemaGrid.pendingInserts.push({});
-        const tbody = document.querySelector("#schema-grid-table tbody");
+        const tbody = document.querySelector(`#schema-grid-table-${window.AppState.currentTable} tbody`);
         const tr = document.createElement("tr");
         tr.className = "ghost-row-tr";
         const nextRowIdx = parseInt(td.dataset.rowIdx) + 1;
@@ -214,6 +215,7 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
         delete window.SchemaGrid.pendingEdits[originalColName][colKey];
     }
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function markSchemaRowDeleted(rowIdx, recordHistory = true) {
@@ -236,6 +238,7 @@ export function markSchemaRowDeleted(rowIdx, recordHistory = true) {
     window.SchemaGrid.pendingDeletes.add(colName);
     tr.classList.add("row-deleted");
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function unmarkSchemaRowDeleted(rowIdx, colName) {
@@ -244,4 +247,5 @@ export function unmarkSchemaRowDeleted(rowIdx, colName) {
     ?.closest("tr");
   if (tr) tr.classList.remove("row-deleted");
   window.SchemaGrid.pendingDeletes.delete(colName);
+  window.updateSidebarDirtyState?.();
 }

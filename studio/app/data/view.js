@@ -10,6 +10,7 @@ export async function loadTableData(
   btnElement,
   whereClause = "",
   preserveState = false,
+  container = null
 ) {
   const allBtns = document.querySelectorAll(".table-btn");
   allBtns.forEach((b) => b.classList.remove("active"));
@@ -18,9 +19,9 @@ export async function loadTableData(
   const headerTableName = document.getElementById("table-name");
   if (headerTableName) headerTableName.textContent = tableName;
 
-  const mainContent = document.getElementById("main-content");
+  const renderTarget = container || document.getElementById("main-content");
   if (!preserveState) {
-    mainContent.innerHTML = "<div style='padding:24px;'>Loading...</div>";
+    renderTarget.innerHTML = "<div style='padding:24px;'>Loading...</div>";
   }
 
   try {
@@ -43,12 +44,18 @@ export async function loadTableData(
         pagination: { limit: 50, offset: 0, isLoading: false, hasMore: true },
         selection: {
           isDragging: false,
+          isDraggingRow: false,
           startRow: -1,
           startCol: -1,
           endRow: -1,
           endCol: -1,
         },
       };
+    }
+    
+    // Cache the grid reference
+    if (window.TableStates && window.TableStates[tableName]) {
+      window.TableStates[tableName].dataGrid = window.DataGrid;
     }
 
     const options = {
@@ -78,8 +85,8 @@ export async function loadTableData(
                 <span class="material-symbols-outlined" id="filter-icon">filter_list</span>
                 <span>Filter</span>
               </div>
-              <select id="filter-col" class="filter-select">${columnOptions}</select>
-              <select id="filter-op" class="filter-select">
+              <select id="filter-col-${tableName}" class="filter-select">${columnOptions}</select>
+              <select id="filter-op-${tableName}" class="filter-select">
                 <option value="=">=</option>
                 <option value=">">></option>
                 <option value="<"><</option>
@@ -88,17 +95,17 @@ export async function loadTableData(
                 <option value="LIKE">LIKE</option>
                 <option value="!=">!=</option>
               </select>
-              <input type="text" id="filter-val" class="filter-input" placeholder="Enter value..." />
+              <input type="text" id="filter-val-${tableName}" class="filter-input" placeholder="Enter value..." />
             </div>
             <div style="flex:1;"></div>
-            <button id="btn-refresh-data" title="Refresh Data (F5)"><span class="material-symbols-outlined">refresh</span></button>
+            <button id="btn-refresh-data-${tableName}" title="Refresh Data (F5)"><span class="material-symbols-outlined">refresh</span></button>
           </div>
-          <div class="table-container" id="data-grid-container"></div>
+          <div class="table-container" id="data-grid-container-${tableName}"></div>
         `;
-        mainContent.innerHTML = html;
+        renderTarget.innerHTML = html;
       }
 
-      let tableHtml = `<table class="data-table" id="data-grid-table"><thead><tr>`;
+      let tableHtml = `<table class="data-table" id="data-grid-table-${tableName}"><thead><tr>`;
       tableHtml += `<th class="row-header">#</th>`;
       columns.forEach((col) => {
         const colSchema = schema.find((c) => c.name === col);
@@ -138,7 +145,7 @@ export async function loadTableData(
       });
       tableHtml += `</tr></tbody></table>`;
 
-      const tableContainer = document.getElementById("data-grid-container");
+      const tableContainer = document.getElementById(`data-grid-container-${tableName}`);
       if (!tableContainer) {
         // User navigated away (e.g., switched to Schema tab) while this was fetching
         return;
@@ -176,14 +183,14 @@ export async function loadTableData(
 
       bindCellSelection(
         tableContainer,
-        "data-grid-table",
+        `data-grid-table-${tableName}`,
         window.DataGrid,
         columns.length,
       );
       bindCellEditor(tableContainer, schema, columns);
 
       if (!preserveState) {
-        const inputElSearch = document.getElementById("filter-val");
+        const inputElSearch = document.getElementById(`filter-val-${tableName}`);
 
         const executeSearch = (resetOffset = true) => {
           if (resetOffset && window.DataGrid)
@@ -202,8 +209,8 @@ export async function loadTableData(
           inputElSearch.addEventListener("input", debounceSearch);
         }
 
-        const filterCol = document.getElementById("filter-col");
-        const filterOp = document.getElementById("filter-op");
+        const filterCol = document.getElementById(`filter-col-${tableName}`);
+        const filterOp = document.getElementById(`filter-op-${tableName}`);
         if (filterCol)
           filterCol.addEventListener("change", () => executeSearch(true));
         if (filterOp)
@@ -223,7 +230,7 @@ export async function loadTableData(
           executeSearch(false);
         };
 
-        const refreshBtn = document.getElementById("btn-refresh-data");
+        const refreshBtn = document.getElementById(`btn-refresh-data-${tableName}`);
         if (refreshBtn) refreshBtn.onclick = refreshData;
 
         window.DataGrid.refreshData = refreshData;
@@ -253,7 +260,7 @@ export async function loadTableData(
               window.DataGrid.pagination.hasMore =
                 moreRows.length === window.DataGrid.pagination.limit;
 
-              const tbody = document.querySelector("#data-grid-table tbody");
+              const tbody = document.querySelector(`#data-grid-table-${tableName} tbody`);
               if (!tbody) return;
 
               const ghostRowTr = tbody.querySelector(".ghost-row-tr");
@@ -286,7 +293,8 @@ export async function loadTableData(
           }
         };
 
-        const container = document.getElementById("data-grid-container");
+        setTimeout(() => {
+        const container = document.getElementById(`data-grid-container-${tableName}`);
         if (container) {
           container.addEventListener("scroll", (e) => {
             const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -295,11 +303,12 @@ export async function loadTableData(
             }
           });
         }
+      }, 50);
       }
     } else {
-      mainContent.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
+      renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
     }
   } catch (err) {
-    mainContent.innerHTML = `<div style="padding:24px; color:red;">Failed to load data: ${err.message}</div>`;
+    renderTarget.innerHTML = `<div style="padding:24px; color:red;">Failed to load data: ${err.message}</div>`;
   }
 }

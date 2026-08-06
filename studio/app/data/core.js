@@ -82,6 +82,7 @@ export async function saveDataGridEdits() {
       td.classList.add("cell-error");
     });
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function updateCell(td, newVal, columns, recordHistory = true) {
@@ -109,7 +110,7 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
 
       if (idx === window.DataGrid.pendingInserts.length - 1) {
         window.DataGrid.pendingInserts.push({});
-        const tbody = document.querySelector("#data-grid-table tbody");
+        const tbody = document.querySelector(`#data-grid-table-${window.AppState.currentTable} tbody`);
         const tr = document.createElement("tr");
         tr.className = "ghost-row-tr";
         const nextRowIdx = parseInt(td.dataset.rowIdx) + 1;
@@ -135,6 +136,7 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
         delete window.DataGrid.pendingEdits[pk][colName];
     }
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function markRowDeleted(rowIdx, recordHistory = true) {
@@ -158,6 +160,7 @@ export function markRowDeleted(rowIdx, recordHistory = true) {
     window.DataGrid.pendingDeletes.add(pk);
     tr.classList.add("row-deleted");
   }
+  window.updateSidebarDirtyState?.();
 }
 
 export function unmarkRowDeleted(rowIdx, pk) {
@@ -166,6 +169,7 @@ export function unmarkRowDeleted(rowIdx, pk) {
     ?.closest("tr");
   if (tr) tr.classList.remove("row-deleted");
   window.DataGrid.pendingDeletes.delete(pk);
+  window.updateSidebarDirtyState?.();
 }
 
 
