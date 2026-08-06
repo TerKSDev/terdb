@@ -22,6 +22,8 @@ export interface DBAdapter {
   executeSql(sql: string): Promise<void>;
   insert(tableName: string, rows: Record<string, any>[]): Promise<void>;
   close(): Promise<void>;
+  /** Quote a table/column identifier using the correct syntax for this database engine. */
+  quoteIdentifier(name: string): string;
 }
 
 export interface DBConfig {

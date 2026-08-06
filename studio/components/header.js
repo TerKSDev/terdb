@@ -1,3 +1,4 @@
+export const HeaderHTML = `
 <header>
   <div id="current-path">
     <span id="db-name">database</span>
@@ -8,3 +9,4 @@
     </div>
   </div>
 </header>
+`;

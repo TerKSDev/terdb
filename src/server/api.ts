@@ -24,7 +24,7 @@ export function registerApiRoutes(app: Hono, dbConfig: DBConfig) {
       const stats: Record<string, number> = {};
       for (const t of tables) {
          try {
-           const res = await adapter.query(`SELECT COUNT(*) as c FROM "${t}"`);
+           const res = await adapter.query(`SELECT COUNT(*) as c FROM ${adapter.quoteIdentifier(t)}`);
            // Different adapters might return row keys differently, try to extract count safely
            if (res && res.rows && res.rows.length > 0) {
               const row = res.rows[0];

@@ -1,7 +1,6 @@
 import { input, select, confirm } from "@inquirer/prompts";
 import pc from "picocolors";
-import { ColumnSchema } from "../../core/types.js";
-import { DBAdapter } from "../../core/factory.js";
+import { ColumnSchema, DBAdapter } from "../../core/types.js";
 
 export async function promptColumnSchema(
   adapter: DBAdapter,
@@ -91,18 +90,18 @@ export async function promptColumnSchema(
       if (allTables.length > 0) {
         const targetTable = await select({
           message: "Select target table:",
-          choices: allTables.map((t) => ({ name: t, value: t })),
+          choices: allTables.map((t: string) => ({ name: t, value: t })),
         });
         const targetSchema = await adapter.getSchema(targetTable);
         if (targetSchema.length > 0) {
           const targetCol = await select({
             message: "Select target column:",
-            choices: targetSchema.map((c) => ({
+            choices: targetSchema.map((c: ColumnSchema) => ({
               name: `${c.name} (${c.type})`,
               value: c.name,
             })),
           });
-          fkTarget = { table: targetTable, column: targetCol };
+          fkTarget = { table: targetTable as string, column: targetCol as string };
           defaultValue = `FK -> ${targetTable}.${targetCol}`;
         } else {
           console.log(pc.yellow("Target table has no columns."));

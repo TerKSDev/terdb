@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "tsx bin/cli.ts",
+    "dev:studio": "vite --config studio/vite.config.ts",
     "build:cli": "tsup",
     "build:studio": "vite build --config studio/vite.config.ts",
     "build": "pnpm build:cli && pnpm build:studio",

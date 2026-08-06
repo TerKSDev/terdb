@@ -39,7 +39,7 @@ export async function runStudio(dbConfig: DBConfig) {
     }
   });
 
-  // Use PORT environment variable if provided, otherwise default to 3000
+  // Use PORT environment variable if provided, otherwise default to 51213
   const defaultPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 51213;
   const port = await getAvailablePort(defaultPort);
 

@@ -1,3 +1,4 @@
+export const TabHTML = `
 <nav id="tab-nav">
   <button
     type="button"
@@ -18,6 +19,13 @@
     </span>
     Schema (Structure)
   </button>
+
+  <div style="flex: 1;"></div>
+
+  <button class="tab-btn" onclick="handleSwitchTab('status-btn')" id="status-btn">
+    <span class="material-symbols-outlined" id="status-icon"> database </span>
+    Database Status
+  </button>
   <button class="tab-btn" onclick="handleSwitchTab('erd-btn')" id="erd-btn">
     <span class="material-symbols-outlined" id="erd-icon"> schema </span>
     ERD Visualization
@@ -27,3 +35,4 @@
     SQL Console
   </button>
 </nav>
+`;

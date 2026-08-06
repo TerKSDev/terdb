@@ -1,4 +1,4 @@
-import { executeRawQuery } from "../../../lib/api.js";
+import { executeRawQuery } from "../../lib/api.js";
 
 export async function saveDataGridEdits() {
   if (!window.DataGrid) return;
@@ -73,8 +73,10 @@ export async function saveDataGridEdits() {
 
   if (allSuccess) {
     window.renderCurrentView();
+    if (window.showToast) window.showToast("Data saved successfully!");
   } else {
-    alert("Save failed:\n" + errorMsg);
+    if (window.showToast) window.showToast("Save failed: " + errorMsg, "error");
+    else alert("Save failed:\n" + errorMsg);
     document.querySelectorAll(".cell-edited").forEach((td) => {
       td.classList.remove("cell-edited");
       td.classList.add("cell-error");
@@ -166,44 +168,4 @@ export function unmarkRowDeleted(rowIdx, pk) {
   window.DataGrid.pendingDeletes.delete(pk);
 }
 
-export function renderSelection() {
-  document
-    .querySelectorAll(
-      ".cell-in-range, .cell-selected, .range-top, .range-bottom, .range-left, .range-right",
-    )
-    .forEach((el) => {
-      el.classList.remove(
-        "cell-in-range",
-        "cell-selected",
-        "range-top",
-        "range-bottom",
-        "range-left",
-        "range-right",
-      );
-    });
-  const s = window.DataGrid.selection;
-  if (s.startRow === -1) return;
 
-  const minR = Math.min(s.startRow, s.endRow);
-  const maxR = Math.max(s.startRow, s.endRow);
-  const minC = Math.min(s.startCol, s.endCol);
-  const maxC = Math.max(s.startCol, s.endCol);
-
-  document.querySelectorAll("td.data-cell").forEach((td) => {
-    const r = parseInt(td.dataset.rowIdx);
-    const c = parseInt(td.dataset.colIdx);
-    if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
-      td.classList.add("cell-in-range");
-
-      if (r === minR) td.classList.add("range-top");
-      if (r === maxR) td.classList.add("range-bottom");
-      if (c === minC) td.classList.add("range-left");
-      if (c === maxC) td.classList.add("range-right");
-
-      if (r === s.startRow && c === s.startCol) {
-        td.classList.add("cell-selected");
-        window.DataGrid.selectedCell = td;
-      }
-    }
-  });
-}

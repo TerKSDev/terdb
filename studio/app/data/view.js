@@ -1,0 +1,305 @@
+import { fetchTableSchema, fetchTableWithName } from "../../lib/api.js";
+import { bindColumnResizer, bindCellSelection } from "../../components/grid.js";
+import { bindCellEditor } from "./events.js";
+import { getFilterQuery, generateRowHtml } from "./utils.js";
+
+export { saveDataGridEdits } from "./core.js";
+
+export async function loadTableData(
+  tableName,
+  btnElement,
+  whereClause = "",
+  preserveState = false,
+) {
+  const allBtns = document.querySelectorAll(".table-btn");
+  allBtns.forEach((b) => b.classList.remove("active"));
+  if (btnElement) btnElement.classList.add("active");
+
+  const headerTableName = document.getElementById("table-name");
+  if (headerTableName) headerTableName.textContent = tableName;
+
+  const mainContent = document.getElementById("main-content");
+  if (!preserveState) {
+    mainContent.innerHTML = "<div style='padding:24px;'>Loading...</div>";
+  }
+
+  try {
+    const schemaRes = await fetchTableSchema(tableName);
+    if (!schemaRes.success) throw new Error(schemaRes.error);
+    const schema = schemaRes.data;
+    const pkColumn = schema.find((c) => c.isPk)?.name;
+
+    if (!preserveState || !window.DataGrid) {
+      window.DataGrid = {
+        schema,
+        pkColumn,
+        pendingEdits: {},
+        pendingInserts: [{}],
+        pendingDeletes: new Set(),
+        selectedCell: null,
+        history: [],
+        currentTransaction: null,
+        sortState: { col: pkColumn || schema[0].name, asc: true },
+        pagination: { limit: 50, offset: 0, isLoading: false, hasMore: true },
+        selection: {
+          isDragging: false,
+          startRow: -1,
+          startCol: -1,
+          endRow: -1,
+          endCol: -1,
+        },
+      };
+    }
+
+    const options = {
+      where: whereClause,
+      limit: window.DataGrid.pagination.limit,
+      offset: window.DataGrid.pagination.offset,
+      orderCol: window.DataGrid.sortState.col,
+      orderAsc: window.DataGrid.sortState.asc,
+    };
+
+    const res = await fetchTableWithName(tableName, options);
+    if (res.success && res.data) {
+      const rows = res.data.rows;
+      const columns = res.data.columns;
+      window.DataGrid.pagination.hasMore =
+        rows.length === window.DataGrid.pagination.limit;
+
+      let columnOptions = columns
+        .map((c) => `<option value="${c}">${c}</option>`)
+        .join("");
+
+      if (!preserveState) {
+        let html = `
+          <div class="toolbar">
+            <div class="filter-group">
+              <div class="filter-icon-container">
+                <span class="material-symbols-outlined" id="filter-icon">filter_list</span>
+                <span>Filter</span>
+              </div>
+              <select id="filter-col" class="filter-select">${columnOptions}</select>
+              <select id="filter-op" class="filter-select">
+                <option value="=">=</option>
+                <option value=">">></option>
+                <option value="<"><</option>
+                <option value=">=">>=</option>
+                <option value="<="><=</option>
+                <option value="LIKE">LIKE</option>
+                <option value="!=">!=</option>
+              </select>
+              <input type="text" id="filter-val" class="filter-input" placeholder="Enter value..." />
+            </div>
+            <div style="flex:1;"></div>
+            <button id="btn-refresh-data" title="Refresh Data (F5)"><span class="material-symbols-outlined">refresh</span></button>
+          </div>
+          <div class="table-container" id="data-grid-container"></div>
+        `;
+        mainContent.innerHTML = html;
+      }
+
+      let tableHtml = `<table class="data-table" id="data-grid-table"><thead><tr>`;
+      tableHtml += `<th class="row-header">#</th>`;
+      columns.forEach((col) => {
+        const colSchema = schema.find((c) => c.name === col);
+        let pkLabel = "";
+        let typeLabel = "";
+        if (colSchema) {
+          if (colSchema.isPk)
+            pkLabel = ` <span style="opacity:0.5; font-size:10px;">(PK)</span>`;
+          if (colSchema.name.toLowerCase().includes("id") && !colSchema.isPk)
+            pkLabel = ` <span style="opacity:0.5; font-size:10px;">(FK)</span>`;
+          typeLabel = `<br><span style="font-weight:normal; opacity:0.7; font-size:10px; font-family:monospace;">${colSchema.type}</span>`;
+        }
+        let sortArrow = "";
+        if (window.DataGrid.sortState.col === col) {
+          sortArrow = window.DataGrid.sortState.asc ? "▲" : "▼";
+        }
+        tableHtml += `<th class="sortable" data-col="${col}" style="cursor:pointer; user-select:none;">
+                   <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <div>${col}${pkLabel}${typeLabel}</div>
+                      <div class="sort-arrow" style="font-size:10px; opacity:0.8; margin-left: 8px; width: 12px; text-align: right;">${sortArrow}</div>
+                   </div>
+                 </th>`;
+      });
+      tableHtml += `</tr></thead><tbody>`;
+
+      if (rows && rows.length > 0) {
+        rows.forEach((row, rowIndex) => {
+          tableHtml += `<tr>${generateRowHtml(row, rowIndex, pkColumn, columns)}</tr>`;
+        });
+      }
+
+      tableHtml += `<tr class="ghost-row-tr">`;
+      const ghostIdx = rows ? rows.length : 0;
+      tableHtml += `<td class="row-header" data-row-idx="${ghostIdx}">*</td>`;
+      columns.forEach((col, cIdx) => {
+        tableHtml += `<td class="data-cell ghost-row" data-row-idx="${ghostIdx}" data-col-idx="${cIdx}" data-insert-index="0" data-col="${col}">+ New</td>`;
+      });
+      tableHtml += `</tr></tbody></table>`;
+
+      const tableContainer = document.getElementById("data-grid-container");
+      if (!tableContainer) {
+        // User navigated away (e.g., switched to Schema tab) while this was fetching
+        return;
+      }
+      tableContainer.innerHTML = tableHtml;
+
+      document.querySelectorAll("th.sortable").forEach((th) => {
+        th.onclick = (e) => {
+          if (window.DataGrid && window.DataGrid.isResizing) return;
+          const hasPending =
+            Object.keys(window.DataGrid.pendingEdits).length > 0 ||
+            window.DataGrid.pendingInserts.length > 1 ||
+            window.DataGrid.pendingDeletes.size > 0;
+          if (hasPending) {
+            alert(
+              "You have unsaved changes. Please save changes before sorting.",
+            );
+            return;
+          }
+
+          const col = th.dataset.col;
+          if (window.DataGrid.sortState.col === col) {
+            window.DataGrid.sortState.asc = !window.DataGrid.sortState.asc;
+          } else {
+            window.DataGrid.sortState.col = col;
+            window.DataGrid.sortState.asc = true;
+          }
+
+          window.DataGrid.pagination.offset = 0;
+          loadTableData(tableName, btnElement, getFilterQuery(), true);
+        };
+
+        bindColumnResizer(th, window.DataGrid);
+      });
+
+      bindCellSelection(
+        tableContainer,
+        "data-grid-table",
+        window.DataGrid,
+        columns.length,
+      );
+      bindCellEditor(tableContainer, schema, columns);
+
+      if (!preserveState) {
+        const inputElSearch = document.getElementById("filter-val");
+
+        const executeSearch = (resetOffset = true) => {
+          if (resetOffset && window.DataGrid)
+            window.DataGrid.pagination.offset = 0;
+
+          loadTableData(tableName, btnElement, getFilterQuery(), true);
+        };
+
+        let searchTimeout;
+        const debounceSearch = () => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => executeSearch(true), 400);
+        };
+
+        if (inputElSearch) {
+          inputElSearch.addEventListener("input", debounceSearch);
+        }
+
+        const filterCol = document.getElementById("filter-col");
+        const filterOp = document.getElementById("filter-op");
+        if (filterCol)
+          filterCol.addEventListener("change", () => executeSearch(true));
+        if (filterOp)
+          filterOp.addEventListener("change", () => executeSearch(true));
+
+        const refreshData = () => {
+          const hasPending =
+            Object.keys(window.DataGrid.pendingEdits).length > 0 ||
+            window.DataGrid.pendingInserts.length > 1 ||
+            window.DataGrid.pendingDeletes.size > 0;
+          if (hasPending) {
+            const confirmDiscard = confirm(
+              "You have unsaved changes. Are you sure you want to refresh and discard them?",
+            );
+            if (!confirmDiscard) return;
+          }
+          executeSearch(false);
+        };
+
+        const refreshBtn = document.getElementById("btn-refresh-data");
+        if (refreshBtn) refreshBtn.onclick = refreshData;
+
+        window.DataGrid.refreshData = refreshData;
+
+        const loadMoreData = async () => {
+          if (
+            window.DataGrid.pagination.isLoading ||
+            !window.DataGrid.pagination.hasMore
+          )
+            return;
+          window.DataGrid.pagination.isLoading = true;
+          window.DataGrid.pagination.offset += window.DataGrid.pagination.limit;
+
+          const opts = {
+            where: getFilterQuery(),
+            limit: window.DataGrid.pagination.limit,
+            offset: window.DataGrid.pagination.offset,
+            orderCol: window.DataGrid.sortState.col,
+            orderAsc: window.DataGrid.sortState.asc,
+          };
+
+          try {
+            const resMore = await fetchTableWithName(tableName, opts);
+            window.DataGrid.pagination.isLoading = false;
+            if (resMore.success && resMore.data) {
+              const moreRows = resMore.data.rows;
+              window.DataGrid.pagination.hasMore =
+                moreRows.length === window.DataGrid.pagination.limit;
+
+              const tbody = document.querySelector("#data-grid-table tbody");
+              if (!tbody) return;
+
+              const ghostRowTr = tbody.querySelector(".ghost-row-tr");
+              if (ghostRowTr) tbody.removeChild(ghostRowTr);
+
+              const startIdx = window.DataGrid.pagination.offset;
+              moreRows.forEach((row, i) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = generateRowHtml(
+                  row,
+                  startIdx + i,
+                  pkColumn,
+                  columns,
+                );
+                tbody.appendChild(tr);
+              });
+
+              if (ghostRowTr) {
+                const newGhostIdx = startIdx + moreRows.length;
+                const rowHeader = ghostRowTr.querySelector(".row-header");
+                if (rowHeader) rowHeader.dataset.rowIdx = newGhostIdx;
+                ghostRowTr.querySelectorAll(".ghost-row").forEach((td) => {
+                  td.dataset.rowIdx = newGhostIdx;
+                });
+                tbody.appendChild(ghostRowTr);
+              }
+            }
+          } catch (e) {
+            window.DataGrid.pagination.isLoading = false;
+          }
+        };
+
+        const container = document.getElementById("data-grid-container");
+        if (container) {
+          container.addEventListener("scroll", (e) => {
+            const { scrollTop, scrollHeight, clientHeight } = e.target;
+            if (scrollTop + clientHeight >= scrollHeight - 50) {
+              loadMoreData();
+            }
+          });
+        }
+      }
+    } else {
+      mainContent.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
+    }
+  } catch (err) {
+    mainContent.innerHTML = `<div style="padding:24px; color:red;">Failed to load data: ${err.message}</div>`;
+  }
+}

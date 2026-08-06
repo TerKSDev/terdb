@@ -16,6 +16,11 @@ export class MysqlAdapter implements DBAdapter {
     return this.pool;
   }
 
+  quoteIdentifier(name: string): string {
+    // MySQL uses backticks for identifiers; escape any embedded backticks
+    return `\`${name.replace(/`/g, "``")}\``;
+  }
+
   async getTables(): Promise<string[]> {
     const pool = await this.getPool();
     const [rows] = await pool.query("SHOW TABLES;");
@@ -26,20 +31,54 @@ export class MysqlAdapter implements DBAdapter {
 
   async getSchema(tableName: string): Promise<ColumnSchema[]> {
     const pool = await this.getPool();
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new Error(`Invalid table name: ${tableName}`);
-    }
 
-    const [rows] = await pool.query(`SHOW COLUMNS FROM \`${tableName}\``);
+    const [rows] = await pool.query(
+      `SHOW COLUMNS FROM ${this.quoteIdentifier(tableName)}`,
+    );
     const columns = rows as any[];
-    
-    return columns.map((col) => ({
-      name: col.Field,
-      type: col.Type,
-      isPk: col.Key === "PRI",
-      nullable: col.Null === "YES",
-      extra: col.Extra,
-    }));
+
+    const [fkRows] = await pool.query(
+      `
+      SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = ? 
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+    `,
+      [tableName],
+    );
+    const fks = fkRows as any[];
+
+    return columns.map((col) => {
+      const fk = fks.find((f) => f.COLUMN_NAME === col.Field);
+
+      // Parse ENUM values from type string like "enum('a','b','c')"
+      let enumValues: string[] | undefined;
+      const typeUpper = (col.Type as string).toUpperCase();
+      if (typeUpper.startsWith("ENUM")) {
+        const enumMatch = (col.Type as string).match(/enum\((.*?)\)/i);
+        if (enumMatch) {
+          enumValues = enumMatch[1]
+            .split(",")
+            .map((s) => s.trim().replace(/^'|'$/g, ""));
+        }
+      }
+
+      return {
+        name: col.Field,
+        type: col.Type,
+        isPk: col.Key === "PRI",
+        nullable: col.Null === "YES",
+        defaultValue: col.Default != null ? String(col.Default) : undefined,
+        enumValues,
+        fkTarget: fk
+          ? {
+              table: fk.REFERENCED_TABLE_NAME,
+              column: fk.REFERENCED_COLUMN_NAME,
+            }
+          : undefined,
+      };
+    });
   }
 
   async getData(
@@ -47,22 +86,19 @@ export class MysqlAdapter implements DBAdapter {
     limit: number = 50,
     offset: number = 0,
     whereClause?: string,
-    orderBy?: { col: string; asc: boolean }
+    orderBy?: { col: string; asc: boolean },
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const pool = await this.getPool();
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new Error(`Invalid table name: ${tableName}`);
-    }
 
     const schema = await this.getSchema(tableName);
     const columns = schema.map((col) => col.name);
 
-    let sql = `SELECT * FROM \`${tableName}\``;
+    let sql = `SELECT * FROM ${this.quoteIdentifier(tableName)}`;
     if (whereClause) {
       sql += ` WHERE ${whereClause}`;
     }
     if (orderBy) {
-      sql += ` ORDER BY \`${orderBy.col}\` ${orderBy.asc ? "ASC" : "DESC"}`;
+      sql += ` ORDER BY ${this.quoteIdentifier(orderBy.col)} ${orderBy.asc ? "ASC" : "DESC"}`;
     }
     sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
@@ -70,7 +106,9 @@ export class MysqlAdapter implements DBAdapter {
     return { columns, rows: rows as Record<string, any>[] };
   }
 
-  async query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
+  async query(
+    sql: string,
+  ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const pool = await this.getPool();
     const [rows, fields] = await pool.query(sql);
     let columns: string[] = [];
@@ -82,7 +120,9 @@ export class MysqlAdapter implements DBAdapter {
     } else {
       // It's a mutation query (INSERT/UPDATE/DELETE)
       columns = ["Result"];
-      data = [{ Result: "Success", AffectedRows: (rows as any).affectedRows }];
+      data = [
+        { Result: "Success", AffectedRows: (rows as any).affectedRows },
+      ];
     }
 
     return { columns, rows: data };
@@ -100,14 +140,18 @@ export class MysqlAdapter implements DBAdapter {
     }
   }
 
-  async insert(tableName: string, rows: Record<string, any>[]): Promise<void> {
+  async insert(
+    tableName: string,
+    rows: Record<string, any>[],
+  ): Promise<void> {
     if (rows.length === 0) return;
     const pool = await this.getPool();
     const cols = Object.keys(rows[0]);
+    const colsQuoted = cols.map((c) => this.quoteIdentifier(c)).join(", ");
+    const placeholders = cols.map(() => "?").join(", ");
+    const sql = `INSERT INTO ${this.quoteIdentifier(tableName)} (${colsQuoted}) VALUES (${placeholders})`;
     for (const row of rows) {
-      const placeholders = cols.map(() => "?").join(", ");
-      const sql = `INSERT INTO \`${tableName}\` (\`${cols.join('`, `')}\`) VALUES (${placeholders})`;
-      const values = cols.map(c => row[c]);
+      const values = cols.map((c) => row[c]);
       await pool.query(sql, values);
     }
   }

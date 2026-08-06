@@ -7,13 +7,16 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     />
-    <link rel="stylesheet" href="./assets/css/style.css" />
+    <link rel="stylesheet" href="./style.css" />
 
     <title>DRIXIO STUDIO</title>
     <!-- Ace Editor for SQL Console -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js" integrity="sha512-V127u0iE/681x9Z+S3Xz/2aQeY6k/Q+TtwO046sA4K8E0KqNqP/n139xJqG1oE31g3m8L7u5T1WwH0tOWePjxw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-sql.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/theme-chrome.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"
+      integrity="sha512-V127u0iE/681x9Z+S3Xz/2aQeY6k/Q+TtwO046sA4K8E0KqNqP/n139xJqG1oE31g3m8L7u5T1WwH0tOWePjxw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
   </head>
 
   <body>
@@ -24,7 +27,7 @@
       <div id="main-content"></div>
     </main>
 
-    <div id="modal-editor-overlay" style="display: none;">
+    <div id="modal-editor-overlay" style="display: none">
       <div class="modal-editor-container">
         <div class="modal-header">
           <span class="material-symbols-outlined">edit_document</span>
@@ -33,11 +36,13 @@
         <textarea id="modal-textarea" placeholder="Enter value..."></textarea>
         <div class="modal-footer">
           <button type="button" id="modal-cancel-btn">Cancel</button>
-          <button type="button" id="modal-save-btn" class="primary">Save</button>
+          <button type="button" id="modal-save-btn" class="primary">
+            Save
+          </button>
         </div>
       </div>
     </div>
-
-    <script type="module" src="./assets/js/main.js"></script>
+    <div id="toast-container"></div>
+    <script type="module" src="./app/main.js"></script>
   </body>
 </html>

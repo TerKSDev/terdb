@@ -1,0 +1,247 @@
+import { executeRawQuery } from "../../lib/api.js";
+
+export async function saveSchemaEdits() {
+  if (!window.SchemaGrid) return;
+  const { pendingEdits, pendingInserts, pendingDeletes } = window.SchemaGrid;
+  const tableName = window.AppState.currentTable;
+
+  if (!tableName) return;
+
+  let sqls = [];
+
+  // Handle Deletes
+  if (pendingDeletes) {
+    for (const colName of pendingDeletes) {
+      sqls.push(`ALTER TABLE "${tableName}" DROP COLUMN "${colName}";`);
+    }
+  }
+
+  // Handle Updates
+  for (const [colName, edits] of Object.entries(pendingEdits)) {
+    let newName = colName;
+    if (edits.name && edits.name !== colName) {
+      sqls.push(
+        `ALTER TABLE "${tableName}" RENAME COLUMN "${colName}" TO "${edits.name}";`,
+      );
+      newName = edits.name;
+    }
+
+    const otherKeys = Object.keys(edits).filter((k) => k !== "name");
+    if (otherKeys.length > 0) {
+      const origCol =
+        window.SchemaGrid.schema?.find((c) => c.name === colName) || {};
+
+      let type = edits.type !== undefined ? edits.type : origCol.type;
+      let constraints = [];
+
+      const isPkRaw = edits.isPk !== undefined ? edits.isPk : origCol.isPk;
+      // isPkRaw might be boolean true, "1", "PK", "FK: table.col", or combination
+      const isPkStr = String(isPkRaw).toUpperCase();
+
+      if (
+        isPkStr === "1" ||
+        isPkStr === "TRUE" ||
+        isPkStr === "YES" ||
+        isPkStr.includes("PK") ||
+        isPkStr === "KEY"
+      ) {
+        constraints.push("PRIMARY KEY");
+      }
+
+      if (isPkStr.includes("FK:")) {
+        const fkMatch = isPkStr.match(/FK:\s*([^\s,]+)/i);
+        if (fkMatch && fkMatch[1]) {
+          const target = fkMatch[1].split(".");
+          if (target.length === 2) {
+            constraints.push(`REFERENCES "${target[0]}"("${target[1]}")`);
+          }
+        }
+      }
+
+      const nullable =
+        edits.nullable !== undefined ? edits.nullable : origCol.nullable;
+      if (nullable === "0" || nullable === "No" || nullable === false)
+        constraints.push("NOT NULL");
+
+      const defVal =
+        edits.defaultValue !== undefined
+          ? edits.defaultValue
+          : origCol.defaultValue;
+      if (defVal)
+        constraints.push(`DEFAULT '${String(defVal).replace(/'/g, "''")}'`);
+
+      sqls.push(
+        `ALTER TABLE "${tableName}" MODIFY COLUMN "${newName}" ${type} ${constraints.join(" ")};`,
+      );
+    }
+  }
+
+  // Handle Inserts
+  for (let i = 0; i < pendingInserts.length; i++) {
+    const row = pendingInserts[i];
+    if (Object.keys(row).length === 0) continue;
+    if (!row.name || row.name.trim() === "") continue;
+
+    const colName = row.name.trim();
+    let type = row.type || "TEXT";
+    let constraints = [];
+
+    const isPkStr = String(row.isPk || "").toUpperCase();
+    if (
+      isPkStr === "1" ||
+      isPkStr === "TRUE" ||
+      isPkStr === "YES" ||
+      isPkStr.includes("PK") ||
+      isPkStr === "KEY"
+    ) {
+      constraints.push("PRIMARY KEY");
+    }
+
+    if (isPkStr.includes("FK:")) {
+      const fkMatch = isPkStr.match(/FK:\s*([^\s,]+)/i);
+      if (fkMatch && fkMatch[1]) {
+        const target = fkMatch[1].split(".");
+        if (target.length === 2) {
+          constraints.push(`REFERENCES "${target[0]}"("${target[1]}")`);
+        }
+      }
+    }
+    if (
+      row.nullable === "0" ||
+      row.nullable === "false" ||
+      row.nullable === "No"
+    ) {
+      constraints.push("NOT NULL");
+    }
+    if (row.defaultValue) {
+      constraints.push(`DEFAULT '${row.defaultValue.replace(/'/g, "''")}'`);
+    }
+
+    sqls.push(
+      `ALTER TABLE "${tableName}" ADD COLUMN "${colName}" ${type} ${constraints.join(" ")};`,
+    );
+  }
+
+  if (sqls.length === 0) return;
+
+  let allSuccess = true;
+  let errorMsg = "";
+
+  for (const sql of sqls) {
+    try {
+      const res = await executeRawQuery(sql);
+      if (!res.success) {
+        allSuccess = false;
+        errorMsg = res.error;
+        break;
+      }
+    } catch (e) {
+      allSuccess = false;
+      errorMsg = e.message;
+      break;
+    }
+  }
+
+  if (allSuccess) {
+    window.renderCurrentView();
+    if (window.showToast) window.showToast("Schema saved successfully!");
+  } else {
+    if (errorMsg.includes('near "MODIFY": syntax error')) {
+      errorMsg =
+        "SQLite: Currently does not support modifying existing column types or constraints directly. You can only Rename columns or Add new columns.";
+    } else if (errorMsg.includes("syntax error")) {
+      errorMsg = "SQLite: " + errorMsg;
+    }
+
+    if (window.showToast) window.showToast("Save failed: " + errorMsg, "error");
+    else alert("Save failed:\n" + errorMsg);
+    document.querySelectorAll(".cell-edited").forEach((td) => {
+      td.classList.remove("cell-edited");
+      td.classList.add("cell-error");
+    });
+  }
+}
+
+export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
+  if (recordHistory && window.SchemaGrid.currentTransaction) {
+    let oldVal = td.textContent;
+    if (oldVal === "null" || td.classList.contains("ghost-row")) oldVal = "";
+    if (oldVal !== newVal) {
+      window.SchemaGrid.currentTransaction.push({ td, oldVal, newVal });
+    }
+  }
+
+  const colKey = td.dataset.colKey;
+
+  td.innerHTML =
+    newVal ||
+    (td.dataset.insertIndex !== undefined ? "+ New" : "<em>null</em>");
+
+  if (td.dataset.insertIndex !== undefined) {
+    const idx = parseInt(td.dataset.insertIndex);
+    if (!window.SchemaGrid.pendingInserts[idx])
+      window.SchemaGrid.pendingInserts[idx] = {};
+    if (newVal) {
+      window.SchemaGrid.pendingInserts[idx][colKey] = newVal;
+      td.classList.add("cell-edited");
+      td.classList.remove("ghost-row");
+
+      if (idx === window.SchemaGrid.pendingInserts.length - 1) {
+        window.SchemaGrid.pendingInserts.push({});
+        const tbody = document.querySelector("#schema-grid-table tbody");
+        const tr = document.createElement("tr");
+        tr.className = "ghost-row-tr";
+        const nextRowIdx = parseInt(td.dataset.rowIdx) + 1;
+        tr.innerHTML += `<td class="row-header" data-row-idx="${nextRowIdx}">*</td>`;
+        columns.forEach((c, cIdx) => {
+          tr.innerHTML += `<td class="data-cell ghost-row" data-row-idx="${nextRowIdx}" data-col-idx="${cIdx}" data-insert-index="${idx + 1}" data-col-key="${c}">+ New</td>`;
+        });
+        tbody.appendChild(tr);
+      }
+    }
+  } else {
+    const originalColName = td.dataset.pk;
+    if (newVal !== td.dataset.original) {
+      if (!window.SchemaGrid.pendingEdits[originalColName])
+        window.SchemaGrid.pendingEdits[originalColName] = {};
+      window.SchemaGrid.pendingEdits[originalColName][colKey] = newVal;
+      td.classList.add("cell-edited");
+      td.classList.remove("cell-error");
+    } else {
+      td.classList.remove("cell-edited");
+      td.classList.remove("cell-error");
+      if (window.SchemaGrid.pendingEdits[originalColName])
+        delete window.SchemaGrid.pendingEdits[originalColName][colKey];
+    }
+  }
+}
+
+export function markSchemaRowDeleted(rowIdx, recordHistory = true) {
+  const tr = document
+    .querySelector(`#schema-grid-table td.data-cell[data-row-idx="${rowIdx}"]`)
+    ?.closest("tr");
+  if (!tr || tr.classList.contains("ghost-row-tr")) return;
+  if (tr.classList.contains("row-deleted")) return;
+
+  const firstCell = tr.querySelector("td.data-cell");
+  const colName = firstCell?.dataset.pk;
+  if (colName !== undefined) {
+    if (recordHistory && window.SchemaGrid.currentTransaction) {
+      window.SchemaGrid.currentTransaction.push({
+        type: "delete",
+        rowIdx,
+        pk: colName,
+      });
+    }
+    window.SchemaGrid.pendingDeletes.add(colName);
+    tr.classList.add("row-deleted");
+  }
+}
+
+export function unmarkSchemaRowDeleted(rowIdx, colName) {
+  const tr = document
+    .querySelector(`#schema-grid-table td.data-cell[data-row-idx="${rowIdx}"]`)
+    ?.closest("tr");
+  if (tr) tr.classList.remove("row-deleted");
+  window.SchemaGrid.pendingDeletes.delete(colName);
+}

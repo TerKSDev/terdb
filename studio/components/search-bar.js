@@ -1,3 +1,4 @@
+export const SideBarHTML = `
 <aside>
   <div id="sidebar-header">
     <span class="material-symbols-outlined" id="database-icon"> database </span>
@@ -19,6 +20,10 @@
   </div>
 
   <div id="sidebar-footer">
-    <button id="setting-btn">Settings</button>
+    <button id="theme-toggle" title="Toggle Dark Mode">
+      <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+      Theme
+    </button>
   </div>
 </aside>
+`;

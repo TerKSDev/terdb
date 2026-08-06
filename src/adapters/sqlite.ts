@@ -21,6 +21,11 @@ export class SqliteAdapter implements DBAdapter {
     return this.db!;
   }
 
+  quoteIdentifier(name: string): string {
+    // SQLite uses double quotes for identifiers; escape any embedded double quotes
+    return `"${name.replace(/"/g, '""')}"`;
+  }
+
   async getTables(): Promise<string[]> {
     const db = await this.getDb();
     const results = db
@@ -33,11 +38,9 @@ export class SqliteAdapter implements DBAdapter {
 
   async getSchema(tableName: string): Promise<ColumnSchema[]> {
     const db = await this.getDb();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tableName)) {
-      throw new Error(`Invalid table name: ${tableName}`);
-    }
+    const quoted = this.quoteIdentifier(tableName);
 
-    const pragmaQuery = db.prepare(`PRAGMA table_info("${tableName}")`);
+    const pragmaQuery = db.prepare(`PRAGMA table_info(${quoted})`);
     const info = pragmaQuery.all() as {
       cid: number;
       name: string;
@@ -47,12 +50,24 @@ export class SqliteAdapter implements DBAdapter {
       pk: number;
     }[];
 
-    return info.map((col) => ({
-      name: col.name,
-      type: col.type,
-      isPk: col.pk > 0,
-      nullable: col.notnull === 0,
-    }));
+    const fkQuery = db.prepare(`PRAGMA foreign_key_list(${quoted})`);
+    const fks = fkQuery.all() as {
+      from: string;
+      table: string;
+      to: string;
+    }[];
+
+    return info.map((col) => {
+      const fk = fks.find((f) => f.from === col.name);
+      return {
+        name: col.name,
+        type: col.type,
+        isPk: col.pk > 0,
+        nullable: col.notnull === 0,
+        defaultValue: col.dflt_value != null ? String(col.dflt_value) : undefined,
+        fkTarget: fk ? { table: fk.table, column: fk.to } : undefined,
+      };
+    });
   }
 
   async getData(
@@ -60,22 +75,19 @@ export class SqliteAdapter implements DBAdapter {
     limit: number = 50,
     offset: number = 0,
     whereClause?: string,
-    orderBy?: { col: string; asc: boolean }
+    orderBy?: { col: string; asc: boolean },
   ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const db = await this.getDb();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tableName)) {
-      throw new Error(`Invalid table name: ${tableName}`);
-    }
 
     const schema = await this.getSchema(tableName);
     const columns = schema.map((col) => col.name);
 
-    let sql = `SELECT * FROM "${tableName}"`;
+    let sql = `SELECT * FROM ${this.quoteIdentifier(tableName)}`;
     if (whereClause) {
       sql += ` WHERE ${whereClause}`;
     }
     if (orderBy) {
-      sql += ` ORDER BY "${orderBy.col}" ${orderBy.asc ? "ASC" : "DESC"}`;
+      sql += ` ORDER BY ${this.quoteIdentifier(orderBy.col)} ${orderBy.asc ? "ASC" : "DESC"}`;
     }
     sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
@@ -84,24 +96,27 @@ export class SqliteAdapter implements DBAdapter {
     return { columns, rows };
   }
 
-  async query(sql: string): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
+  async query(
+    sql: string,
+  ): Promise<{ columns: string[]; rows: Record<string, any>[] }> {
     const db = await this.getDb();
-    const query = db.prepare(sql);
-    // Node SQLite DatabaseSync only has `.all()` for fetching rows.
-    // If it's a mutation (INSERT/UPDATE/DELETE), .all() will throw, so we should check.
-    // However, the REPL might accept anything. Let's try .all(), fallback to .run()/.exec() if it fails?
-    // Wait, `.all()` works for SELECT. If it's not a SELECT, we can use `.run()`.
-    const isSelect = sql.trim().toUpperCase().startsWith("SELECT") || sql.trim().toUpperCase().startsWith("PRAGMA");
-    if (isSelect) {
+    const trimmed = sql.trim().toUpperCase();
+    const isRead =
+      trimmed.startsWith("SELECT") ||
+      trimmed.startsWith("PRAGMA") ||
+      trimmed.startsWith("EXPLAIN") ||
+      trimmed.startsWith("WITH");
+
+    if (isRead) {
+      const query = db.prepare(sql);
       const rows = query.all() as Record<string, any>[];
       let columns: string[] = [];
       if (rows.length > 0) {
         columns = Object.keys(rows[0]);
-      } else {
-        // We cannot reliably get columns from an empty result set in basic node:sqlite yet without PRAGMA or parsing.
       }
       return { columns, rows };
     } else {
+      const query = db.prepare(sql);
       query.run();
       return { columns: ["Result"], rows: [{ Result: "Success" }] };
     }
@@ -119,15 +134,19 @@ export class SqliteAdapter implements DBAdapter {
     }
   }
 
-  async insert(tableName: string, rows: Record<string, any>[]): Promise<void> {
+  async insert(
+    tableName: string,
+    rows: Record<string, any>[],
+  ): Promise<void> {
     if (rows.length === 0) return;
     const db = await this.getDb();
     const cols = Object.keys(rows[0]);
+    const colsQuoted = cols.map((c) => this.quoteIdentifier(c)).join(", ");
     const placeholders = cols.map(() => "?").join(", ");
-    const sql = `INSERT INTO "${tableName}" ("${cols.join('", "')}") VALUES (${placeholders})`;
+    const sql = `INSERT INTO ${this.quoteIdentifier(tableName)} (${colsQuoted}) VALUES (${placeholders})`;
     const stmt = db.prepare(sql);
     for (const row of rows) {
-      const values = cols.map(c => row[c]);
+      const values = cols.map((c) => row[c]);
       stmt.run(...values);
     }
   }

@@ -1,4 +1,4 @@
-import { fetchTables, fetchTableStats } from "../../lib/api.js";
+import { fetchTables, fetchTableStats } from "../lib/api.js";
 
 export async function initSidebar() {
   try {
@@ -15,24 +15,31 @@ export async function initSidebar() {
         btn.onclick = () => {
           window.AppState.currentTable = tableName;
           window.AppState.currentTableBtnElement = btn;
-          window.renderCurrentView();
+          
+          if (window.AppState.currentTab === "erd-btn" || window.AppState.currentTab === "sql-btn" || window.AppState.currentTab === "status-btn") {
+            window.handleSwitchTab("data-btn");
+          } else {
+            window.renderCurrentView();
+          }
         };
         tableNav.appendChild(btn);
       });
       window.handleSwitchTab("data-btn");
 
       // Fetch stats asynchronously
-      fetchTableStats().then(statsRes => {
-         if (statsRes.success && statsRes.data) {
+      fetchTableStats()
+        .then((statsRes) => {
+          if (statsRes.success && statsRes.data) {
             Object.entries(statsRes.data).forEach(([tName, count]) => {
-               const badge = document.getElementById(`badge-${tName}`);
-               if (badge) {
-                  badge.textContent = Number(count).toLocaleString();
-                  badge.style.display = "inline-flex"; // flex so it aligns content center
-               }
+              const badge = document.getElementById(`badge-${tName}`);
+              if (badge) {
+                badge.textContent = Number(count).toLocaleString();
+                badge.style.display = "inline-flex"; // flex so it aligns content center
+              }
             });
-         }
-      }).catch(e => console.error("Failed to load table stats:", e));
+          }
+        })
+        .catch((e) => console.error("Failed to load table stats:", e));
     } else {
       tableNav.innerHTML = `<div id="not-found-msg">No Tables Found.</div>`;
       window.handleSwitchTab("data-btn");

@@ -36,9 +36,7 @@ export async function main() {
 
   if (values.help) {
     console.log(pc.cyan(`\nDrixio CLI - Modern Database Manager\n`));
-    console.log(
-      `${pc.bold("Usage:")} npx drixio [command] [options]\n`,
-    );
+    console.log(`${pc.bold("Usage:")} npx drixio [command] [options]\n`);
     console.log(`${pc.bold("Commands:")}`);
     console.log(`  ${pc.green("query")} "<sql>"         Run a quick SQL query`);
     console.log(
