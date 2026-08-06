@@ -10,7 +10,7 @@ export async function loadTableData(
   btnElement,
   whereClause = "",
   preserveState = false,
-  container = null
+  container = null,
 ) {
   const allBtns = document.querySelectorAll(".table-btn");
   allBtns.forEach((b) => b.classList.remove("active"));
@@ -52,7 +52,7 @@ export async function loadTableData(
         },
       };
     }
-    
+
     // Cache the grid reference
     if (window.TableStates && window.TableStates[tableName]) {
       window.TableStates[tableName].dataGrid = window.DataGrid;
@@ -98,7 +98,7 @@ export async function loadTableData(
               <input type="text" id="filter-val-${tableName}" class="filter-input" placeholder="Enter value..." />
             </div>
             <div style="flex:1;"></div>
-            <button id="btn-refresh-data-${tableName}" title="Refresh Data (F5)"><span class="material-symbols-outlined">refresh</span></button>
+            <button id="btn-refresh-data-${tableName}" class="refresh-btn" title="Refresh Data (F5)"><span class="material-symbols-outlined">refresh</span></button>
           </div>
           <div class="table-container" id="data-grid-container-${tableName}"></div>
         `;
@@ -145,7 +145,9 @@ export async function loadTableData(
       });
       tableHtml += `</tr></tbody></table>`;
 
-      const tableContainer = document.getElementById(`data-grid-container-${tableName}`);
+      const tableContainer = document.getElementById(
+        `data-grid-container-${tableName}`,
+      );
       if (!tableContainer) {
         // User navigated away (e.g., switched to Schema tab) while this was fetching
         return;
@@ -190,7 +192,9 @@ export async function loadTableData(
       bindCellEditor(tableContainer, schema, columns);
 
       if (!preserveState) {
-        const inputElSearch = document.getElementById(`filter-val-${tableName}`);
+        const inputElSearch = document.getElementById(
+          `filter-val-${tableName}`,
+        );
 
         const executeSearch = (resetOffset = true) => {
           if (resetOffset && window.DataGrid)
@@ -227,10 +231,20 @@ export async function loadTableData(
             );
             if (!confirmDiscard) return;
           }
+          
+          window.DataGrid.pendingEdits = {};
+          window.DataGrid.pendingInserts = [{}];
+          window.DataGrid.pendingDeletes = new Set();
+          window.DataGrid.history = [];
+          window.DataGrid.currentTransaction = null;
+          window.updateSidebarDirtyState?.();
+          
           executeSearch(false);
         };
 
-        const refreshBtn = document.getElementById(`btn-refresh-data-${tableName}`);
+        const refreshBtn = document.getElementById(
+          `btn-refresh-data-${tableName}`,
+        );
         if (refreshBtn) refreshBtn.onclick = refreshData;
 
         window.DataGrid.refreshData = refreshData;
@@ -260,7 +274,9 @@ export async function loadTableData(
               window.DataGrid.pagination.hasMore =
                 moreRows.length === window.DataGrid.pagination.limit;
 
-              const tbody = document.querySelector(`#data-grid-table-${tableName} tbody`);
+              const tbody = document.querySelector(
+                `#data-grid-table-${tableName} tbody`,
+              );
               if (!tbody) return;
 
               const ghostRowTr = tbody.querySelector(".ghost-row-tr");
@@ -294,16 +310,18 @@ export async function loadTableData(
         };
 
         setTimeout(() => {
-        const container = document.getElementById(`data-grid-container-${tableName}`);
-        if (container) {
-          container.addEventListener("scroll", (e) => {
-            const { scrollTop, scrollHeight, clientHeight } = e.target;
-            if (scrollTop + clientHeight >= scrollHeight - 50) {
-              loadMoreData();
-            }
-          });
-        }
-      }, 50);
+          const container = document.getElementById(
+            `data-grid-container-${tableName}`,
+          );
+          if (container) {
+            container.addEventListener("scroll", (e) => {
+              const { scrollTop, scrollHeight, clientHeight } = e.target;
+              if (scrollTop + clientHeight >= scrollHeight - 50) {
+                loadMoreData();
+              }
+            });
+          }
+        }, 50);
       }
     } else {
       renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;

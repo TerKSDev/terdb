@@ -733,8 +733,7 @@ header {
   margin-bottom: 0.5px;
 }
 
-#btn-refresh-data,
-#btn-refresh-schema {
+.refresh-btn {
   background-color: var(--color-bg-secondary);
   border-radius: 8px;
   padding: 6px;
@@ -752,14 +751,12 @@ header {
   transition: all 100ms linear;
 }
 
-#btn-refresh-data:hover,
-#btn-refresh-schema:hover {
+.refresh-btn:hover {
   background-color: var(--color-bg-secondary-dark);
   color: var(--color-text);
 }
 
-#btn-refresh-data .material-symbols-outlined,
-#btn-refresh-schema .material-symbols-outlined {
+.refresh-btn .material-symbols-outlined {
   font-size: 18px;
   margin-bottom: 0.5px;
 }

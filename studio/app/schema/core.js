@@ -188,6 +188,7 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
       td.classList.remove("ghost-row");
 
       if (idx === window.SchemaGrid.pendingInserts.length - 1) {
+        td.closest('tr').classList.remove('ghost-row-tr');
         window.SchemaGrid.pendingInserts.push({});
         const tbody = document.querySelector(`#schema-grid-table-${window.AppState.currentTable} tbody`);
         const tr = document.createElement("tr");
@@ -248,4 +249,32 @@ export function unmarkSchemaRowDeleted(rowIdx, colName) {
   if (tr) tr.classList.remove("row-deleted");
   window.SchemaGrid.pendingDeletes.delete(colName);
   window.updateSidebarDirtyState?.();
+}
+export function duplicateSchemaRows(rowIndices, columns) {
+  rowIndices.forEach(rowIdx => {
+    const t = window.AppState.currentTable;
+    const tr = document.querySelector(`#schema-grid-table-${t} td.data-cell[data-row-idx="${rowIdx}"]`)?.closest("tr");
+    if (!tr || tr.classList.contains("ghost-row-tr")) return;
+
+    let ghostTr = document.querySelector(`#schema-grid-table-${t} .ghost-row-tr`);
+    if (!ghostTr) return;
+
+    columns.forEach((col, cIdx) => {
+      const sourceTd = tr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
+      const targetTd = ghostTr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
+      if (sourceTd && targetTd) {
+        let val = sourceTd.dataset.insertIndex !== undefined 
+          ? window.SchemaGrid.pendingInserts[sourceTd.dataset.insertIndex][col]
+          : (sourceTd.classList.contains("cell-edited") ? window.SchemaGrid.pendingEdits[sourceTd.dataset.pk]?.[col] : sourceTd.dataset.original);
+        
+        if (val !== undefined && val !== null && val !== "null") {
+          // Auto append _copy for the 'name' column to avoid immediate conflict
+          if (col === "name") {
+             val = val + "_copy";
+          }
+          updateSchemaCell(targetTd, val, columns, true);
+        }
+      }
+    });
+  });
 }

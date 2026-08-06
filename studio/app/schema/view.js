@@ -20,29 +20,25 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
     if (res.success && res.data) {
       let schema = res.data;
 
-      if (!window.SchemaGrid) {
-        window.SchemaGrid = {
-          schema,
-          pendingEdits: {},
-          pendingInserts: [{}],
-          pendingDeletes: new Set(),
-          selectedCell: null,
-          history: [],
-          currentTransaction: null,
-          sortState: { colKey: null, asc: true },
-          filterText: "",
-          isResizing: false,
-          selection: {
-            startRow: -1,
-            startCol: -1,
-            endRow: -1,
-            endCol: -1,
-            isDragging: false,
-          },
-        };
-      } else {
-        window.SchemaGrid.schema = schema;
-      }
+      window.SchemaGrid = {
+        schema,
+        pendingEdits: {},
+        pendingInserts: [{}],
+        pendingDeletes: new Set(),
+        selectedCell: null,
+        history: [],
+        currentTransaction: null,
+        sortState: { colKey: null, asc: true },
+        filterText: "",
+        isResizing: false,
+        selection: {
+          startRow: -1,
+          startCol: -1,
+          endRow: -1,
+          endCol: -1,
+          isDragging: false,
+        },
+      };
       
       if (window.TableStates && window.TableStates[tableName]) {
         window.TableStates[tableName].schemaGrid = window.SchemaGrid;
@@ -58,7 +54,7 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
             <input type="text" id="schema-search-val-${tableName}" class="filter-input" placeholder="Search name or type..." style="width: 250px;" value="${window.SchemaGrid.filterText}" />
           </div>
           <div style="flex:1;"></div>
-          <button id="btn-refresh-schema-${tableName}" title="Refresh Schema (F5)"><span class="material-symbols-outlined">refresh</span></button>
+          <button id="btn-refresh-schema-${tableName}" class="refresh-btn" title="Refresh Schema (F5)"><span class="material-symbols-outlined">refresh</span></button>
         </div>
         <div id="schema-grid-container-${tableName}" class="table-container"></div>
       `;
@@ -230,7 +226,15 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
             )
               return;
           }
-          loadTableSchema(tableName, btnElement);
+          
+          window.SchemaGrid.pendingEdits = {};
+          window.SchemaGrid.pendingInserts = [{}];
+          window.SchemaGrid.pendingDeletes = new Set();
+          window.SchemaGrid.history = [];
+          window.SchemaGrid.currentTransaction = null;
+          window.updateSidebarDirtyState?.();
+          
+          loadTableSchema(tableName, btnElement, document.getElementById(`view-schema-${tableName}`));
         };
     } else {
       renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;

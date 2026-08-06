@@ -28,7 +28,8 @@ window.updateSidebarDirtyState = function () {
   allBtns.forEach((btn) => {
     const tableName = btn.dataset.table; // Assuming we add data-table to sidebar btns
     // Fallback if data-table is not present, use textContent
-    const tName = tableName || btn.querySelector("span").textContent;
+    const text = btn.querySelector("span").textContent;
+    const tName = tableName || text.replace(/\s*\*$/, "");
     const state = window.TableStates[tName];
     
     let isDirty = false;
@@ -48,7 +49,7 @@ window.updateSidebarDirtyState = function () {
     }
     
     let span = btn.querySelector("span");
-    let baseText = span.textContent.replace(/\*$/, "");
+    let baseText = span.textContent.replace(/\s*\*$/, "");
     if (isDirty) {
       span.textContent = baseText + " *";
       span.style.fontWeight = "bold";
@@ -116,11 +117,14 @@ window.renderCurrentView = function (whereClause = "", preserveState = false) {
     container.id = viewId;
     container.className = "view-container";
     container.style.width = "100%";
-    container.style.height = "100%";
+    container.style.flex = "1";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.overflow = "hidden";
     mainContent.appendChild(container);
   }
   
-  container.style.display = "block";
+  container.style.display = "flex";
   
   if (!window.AppState.currentTable && !isGlobalTab) {
     window.renderEmptyState(container);
@@ -251,33 +255,67 @@ document.addEventListener("DOMContentLoaded", () => {
     menu.style.left = `${e.clientX}px`;
 
     menu.innerHTML = `
+      <div class="context-menu-item" id="cmenu-duplicate">
+         <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span> Duplicate Row(s)
+      </div>
       <div class="context-menu-item danger" id="cmenu-delete">
-         <span class="material-symbols-outlined" style="font-size:16px;">delete</span> Delete Row
+         <span class="material-symbols-outlined" style="font-size:16px;">delete</span> Delete Row(s)
       </div>
     `;
 
     document.body.appendChild(menu);
 
-    document.getElementById("cmenu-delete").onclick = () => {
+    const handleContextMenuAction = (actionType) => {
+      let rowsToProcess = [rowIdx];
+      const grid = isData ? window.DataGrid : window.SchemaGrid;
+      if (grid && grid.selection && grid.selection.startRow !== -1) {
+          const s = grid.selection;
+          const minR = Math.min(s.startRow, s.endRow);
+          const maxR = Math.max(s.startRow, s.endRow);
+          if (rowIdx >= minR && rowIdx <= maxR) {
+              rowsToProcess = [];
+              for (let i = minR; i <= maxR; i++) rowsToProcess.push(i);
+          }
+      }
+
       if (isData) {
-        window.DataGrid.currentTransaction = [];
-        window.DataGrid.markRowDeleted(rowIdx);
-        if (window.DataGrid.currentTransaction.length > 0)
-          window.DataGrid.history.push(window.DataGrid.currentTransaction);
-        window.DataGrid.currentTransaction = null;
+        import("./data/core.js").then((m) => {
+          window.DataGrid.currentTransaction = [];
+          if (actionType === "delete") {
+             rowsToProcess.forEach(r => m.markRowDeleted(r));
+          } else if (actionType === "duplicate") {
+             m.duplicateDataRows(rowsToProcess, window.DataGrid.schema.map(c => c.name));
+             setTimeout(() => {
+               const tableContainer = document.getElementById(`data-grid-container-${window.AppState.currentTable}`);
+               if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
+             }, 50);
+          }
+          if (window.DataGrid.currentTransaction.length > 0)
+            window.DataGrid.history.push(window.DataGrid.currentTransaction);
+          window.DataGrid.currentTransaction = null;
+        });
       } else if (isSchema) {
         import("./schema/core.js").then((m) => {
           window.SchemaGrid.currentTransaction = [];
-          m.markSchemaRowDeleted(rowIdx);
+          if (actionType === "delete") {
+             rowsToProcess.forEach(r => m.markSchemaRowDeleted(r));
+          } else if (actionType === "duplicate") {
+             m.duplicateSchemaRows(rowsToProcess, ["name", "type", "isPk", "nullable", "defaultValue", "Index"]);
+             setTimeout(() => {
+               const tableContainer = document.getElementById(`schema-grid-container-${window.AppState.currentTable}`);
+               if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
+             }, 50);
+          }
           if (window.SchemaGrid.currentTransaction.length > 0)
-            window.SchemaGrid.history.push(
-              window.SchemaGrid.currentTransaction,
-            );
+            window.SchemaGrid.history.push(window.SchemaGrid.currentTransaction);
           window.SchemaGrid.currentTransaction = null;
         });
       }
       menu.remove();
     };
+
+    document.getElementById("cmenu-duplicate").onclick = () => handleContextMenuAction("duplicate");
+    document.getElementById("cmenu-delete").onclick = () => handleContextMenuAction("delete");
 
     const closeMenu = (e2) => {
       if (!menu.contains(e2.target)) {

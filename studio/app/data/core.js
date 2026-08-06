@@ -109,6 +109,7 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
       td.classList.remove("ghost-row");
 
       if (idx === window.DataGrid.pendingInserts.length - 1) {
+        td.closest('tr').classList.remove('ghost-row-tr');
         window.DataGrid.pendingInserts.push({});
         const tbody = document.querySelector(`#data-grid-table-${window.AppState.currentTable} tbody`);
         const tr = document.createElement("tr");
@@ -173,3 +174,27 @@ export function unmarkRowDeleted(rowIdx, pk) {
 }
 
 
+export function duplicateDataRows(rowIndices, columns) {
+  rowIndices.forEach(rowIdx => {
+    const t = window.AppState.currentTable;
+    const tr = document.querySelector(`#data-grid-table-${t} td.data-cell[data-row-idx="${rowIdx}"]`)?.closest("tr");
+    if (!tr || tr.classList.contains("ghost-row-tr")) return;
+
+    let ghostTr = document.querySelector(`#data-grid-table-${t} .ghost-row-tr`);
+    if (!ghostTr) return;
+
+    columns.forEach((col, cIdx) => {
+      const sourceTd = tr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
+      const targetTd = ghostTr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
+      if (sourceTd && targetTd) {
+        let val = sourceTd.dataset.insertIndex !== undefined 
+          ? window.DataGrid.pendingInserts[sourceTd.dataset.insertIndex][col]
+          : (sourceTd.classList.contains("cell-edited") ? window.DataGrid.pendingEdits[sourceTd.dataset.pk]?.[col] : sourceTd.dataset.original);
+        
+        if (val !== undefined && val !== null && val !== "null") {
+          updateCell(targetTd, val, columns, true);
+        }
+      }
+    });
+  });
+}

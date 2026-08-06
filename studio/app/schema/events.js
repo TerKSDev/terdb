@@ -42,6 +42,32 @@ export function bindSchemaCellEditor(tableContainer, columns) {
         if ((opt === "Yes" && rawText === "1") || (opt === "No" && rawText === "")) op.selected = true;
         inputEl.appendChild(op);
       });
+    } else if (colKey === "type") {
+      inputEl = document.createElement("select");
+      const opts = [
+        "INTEGER",
+        "TEXT",
+        "REAL",
+        "BLOB",
+        "NUMERIC",
+        "BOOLEAN",
+        "DATE",
+        "DATETIME",
+        "JSON",
+        "VARCHAR(255)",
+        "DECIMAL(10,2)",
+        "UUID"
+      ];
+      if (rawText && !opts.some(o => o.toUpperCase() === rawText.toUpperCase())) {
+        opts.unshift(rawText);
+      }
+      opts.forEach((opt) => {
+        const op = document.createElement("option");
+        op.value = opt;
+        op.textContent = opt;
+        if (opt.toUpperCase() === rawText.toUpperCase()) op.selected = true;
+        inputEl.appendChild(op);
+      });
     } else {
       inputEl = document.createElement("input");
       inputEl.type = "text";
