@@ -4,16 +4,16 @@ export default defineConfig({
   root: "./studio",
   base: "./",
   build: {
-    outDir: "../../dist/studio",
+    outDir: "../dist/studio",
     emptyOutDir: true,
   },
   server: {
-    port: 3001,
+    port: 51214,
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://localhost:51213",
         changeOrigin: true,
-      }
-    }
-  }
+      },
+    },
+  },
 });

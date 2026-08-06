@@ -10,12 +10,12 @@ export interface DBConfigProps {
 const rgb = (r: number, g: number, b: number) => (text: string) =>
   `\x1b[38;2;${r};${g};${b}m${text}\x1b[39m`;
 
-const l1 = rgb(0, 255, 255);   // Pure Electric Cyan
-const l2 = rgb(0, 230, 245);   // Bright Cyan
-const l3 = rgb(0, 210, 235);   // Vivid Cyan
-const l4 = rgb(0, 188, 220);   // Medium Cyan
-const l5 = rgb(0, 168, 205);   // Cyan-Blue
-const l6 = rgb(0, 148, 188);   // Deep Cyan
+const l1 = rgb(0, 255, 255); // Pure Electric Cyan
+const l2 = rgb(0, 230, 245); // Bright Cyan
+const l3 = rgb(0, 210, 235); // Vivid Cyan
+const l4 = rgb(0, 188, 220); // Medium Cyan
+const l5 = rgb(0, 168, 205); // Cyan-Blue
+const l6 = rgb(0, 148, 188); // Deep Cyan
 
 export function printLogo() {
   console.log(
@@ -68,7 +68,7 @@ export function printCustomDashboard(
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const headerTitle =
-    " Lightweight Interactive TUI Database Client  •  v1.1.1 ";
+    " Lightweight Interactive TUI Database Client  •  v1.1.2 ";
 
   let dbTypeVal = "None";
   let targetVal = "-";

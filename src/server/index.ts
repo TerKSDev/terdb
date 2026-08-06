@@ -39,7 +39,9 @@ export async function runStudio(dbConfig: DBConfig) {
     }
   });
 
-  const port = 3000;
+  // Use PORT environment variable if provided, otherwise default to 3000
+  const defaultPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 51213;
+  const port = await getAvailablePort(defaultPort);
 
   console.log(pc.cyan(`\nStarting Drixio Studio on http://localhost:${port}...`));
   console.log(pc.dim(`Press Ctrl+C to stop the server.\n`));
@@ -50,4 +52,21 @@ export async function runStudio(dbConfig: DBConfig) {
   });
 
   await open(`http://localhost:${port}`);
+}
+
+async function getAvailablePort(startPort: number): Promise<number> {
+  const net = await import("net");
+  let currentPort = startPort;
+  while (true) {
+    const isAvailable = await new Promise<boolean>((resolve) => {
+      const server = net.createServer();
+      server.unref();
+      server.on("error", () => resolve(false));
+      server.listen(currentPort, () => {
+        server.close(() => resolve(true));
+      });
+    });
+    if (isAvailable) return currentPort;
+    currentPort++;
+  }
 }
