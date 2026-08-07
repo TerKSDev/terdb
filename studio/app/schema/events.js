@@ -1,14 +1,20 @@
 import { updateSchemaCell } from "./core.js";
+import { openIndexModal, openPkFkModal } from "./modals.js";
 
 export function bindSchemaCellEditor(tableContainer, columns) {
+  tableContainer.addEventListener("click", (e) => {
+    const manageCell = e.target.closest(".manage-indexes-cell");
+    if (manageCell) {
+      openIndexModal();
+    }
+  });
+
   tableContainer.addEventListener("dblclick", (e) => {
     const td = e.target.closest("td.data-cell");
     if (!td || td.querySelector("input, select")) return;
 
     const colKey = td.dataset.colKey;
     const isNewRow = td.dataset.insertIndex !== undefined;
-
-
 
     const rawText =
       td.textContent === "-" || td.textContent === "+ New" || td.textContent === "No" || td.textContent === "null"
@@ -17,21 +23,8 @@ export function bindSchemaCellEditor(tableContainer, columns) {
 
     let inputEl;
     if (colKey === "isPk") {
-      inputEl = document.createElement("input");
-      inputEl.type = "text";
-      // Convert the display text back to a standard format for editing
-      let editVal = "";
-      if (td.textContent.includes("PK") && td.textContent.includes("FK")) {
-         const fkMatch = td.textContent.match(/FK \((.*?)\)/);
-         editVal = `PK, FK: ${fkMatch ? fkMatch[1] : ""}`;
-      } else if (td.textContent.includes("PK")) {
-         editVal = "PK";
-      } else if (td.textContent.includes("FK")) {
-         const fkMatch = td.textContent.match(/FK \((.*?)\)/);
-         editVal = `FK: ${fkMatch ? fkMatch[1] : ""}`;
-      }
-      inputEl.value = editVal;
-      inputEl.placeholder = "e.g. PK or FK: users.id";
+      openPkFkModal(td, td.textContent);
+      return;
     } else if (colKey === "nullable") {
       inputEl = document.createElement("select");
       const opts = ["No", "Yes"];
@@ -99,5 +92,3 @@ export function bindSchemaCellEditor(tableContainer, columns) {
     });
   });
 }
-
-

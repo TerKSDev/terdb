@@ -70,6 +70,34 @@ export class SqliteAdapter implements DBAdapter {
     });
   }
 
+  async getIndexes(tableName: string): Promise<import("../core/types.js").IndexSchema[]> {
+    const db = await this.getDb();
+    const quoted = this.quoteIdentifier(tableName);
+    
+    // Get list of indexes for the table
+    const indexListQuery = db.prepare(`PRAGMA index_list(${quoted})`);
+    const indexList = indexListQuery.all() as { name: string; unique: number; origin: string }[];
+    
+    const indexes: import("../core/types.js").IndexSchema[] = [];
+    
+    for (const idx of indexList) {
+      // origin 'c' means created via CREATE INDEX, 'u' means created by UNIQUE constraint, 'pk' means primary key
+      // We generally want to show 'c' and 'u', maybe skip 'pk' if it's already handled by the PK column
+      if (idx.origin === 'pk') continue;
+      
+      const indexInfoQuery = db.prepare(`PRAGMA index_info(${this.quoteIdentifier(idx.name)})`);
+      const columns = indexInfoQuery.all() as { name: string }[];
+      
+      indexes.push({
+        name: idx.name,
+        columns: columns.map(c => c.name),
+        isUnique: idx.unique > 0
+      });
+    }
+    
+    return indexes;
+  }
+
   async getData(
     tableName: string,
     limit: number = 50,

@@ -1,3 +1,9 @@
+export interface IndexSchema {
+  name: string;
+  columns: string[];
+  isUnique: boolean;
+}
+
 export interface ColumnSchema {
   name: string;
   type: string;
@@ -11,6 +17,7 @@ export interface ColumnSchema {
 export interface DBAdapter {
   getTables(): Promise<string[]>;
   getSchema(tableName: string): Promise<ColumnSchema[]>;
+  getIndexes(tableName: string): Promise<IndexSchema[]>;
   getData(
     tableName: string,
     limit?: number,

@@ -33,6 +33,12 @@ export async function fetchTableSchema(tableName) {
   return data;
 }
 
+export async function fetchTableIndexes(tableName) {
+  const res = await fetch(`/api/tables/${tableName}/indexes`);
+  const data = await res.json();
+  return data;
+}
+
 export async function executeRawQuery(sql) {
   const res = await fetch(`/api/query`, {
     method: "POST",

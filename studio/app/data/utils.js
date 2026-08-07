@@ -14,7 +14,9 @@ export function getFilterQuery() {
       !safeVal.endsWith("'") &&
       isNaN(Number(safeVal))
     ) {
-      const isRawSql = safeVal.toUpperCase().includes(" AND ") || safeVal.toUpperCase().includes(" OR ");
+      const isRawSql =
+        safeVal.toUpperCase().includes(" AND ") ||
+        safeVal.toUpperCase().includes(" OR ");
       if (!isRawSql) {
         safeVal = `'${safeVal.replace(/'/g, "''")}'`;
       }

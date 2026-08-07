@@ -1,4 +1,4 @@
-import { fetchTableSchema } from "../../lib/api.js";
+import { fetchTableSchema, fetchTableIndexes } from "../../lib/api.js";
 import { bindSchemaCellEditor } from "./events.js";
 import { bindColumnResizer, bindCellSelection } from "../../components/grid.js";
 
@@ -16,13 +16,21 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
   renderTarget.innerHTML = "<div style='padding:24px;'>Loading Schema...</div>";
 
   try {
-    const res = await fetchTableSchema(tableName);
+    const [res, indexesRes] = await Promise.all([
+      fetchTableSchema(tableName),
+      fetchTableIndexes(tableName),
+    ]);
+
     if (res.success && res.data) {
       let schema = res.data;
+      let indexes =
+        indexesRes.success && indexesRes.data ? indexesRes.data : [];
 
       window.SchemaGrid = {
         schema,
+        indexes,
         pendingEdits: {},
+        pendingIndexEdits: { added: [], dropped: [] },
         pendingInserts: [{}],
         pendingDeletes: new Set(),
         selectedCell: null,
@@ -39,7 +47,7 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
           isDragging: false,
         },
       };
-      
+
       if (window.TableStates && window.TableStates[tableName]) {
         window.TableStates[tableName].schemaGrid = window.SchemaGrid;
       }
@@ -60,7 +68,9 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
       `;
 
       window.renderSchemaGrid = () => {
-        const tableContainer = document.getElementById(`schema-grid-container-${tableName}`);
+        const tableContainer = document.getElementById(
+          `schema-grid-container-${tableName}`,
+        );
         if (!tableContainer) return;
 
         let displaySchema = [...window.SchemaGrid.schema];
@@ -87,14 +97,21 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
           });
         }
 
-        const columns = ["name", "type", "isPk", "nullable", "defaultValue", "index"];
+        const columns = [
+          "name",
+          "type",
+          "isPk",
+          "nullable",
+          "defaultValue",
+          "indexing",
+        ];
         const columnLabels = [
           "Name",
           "Type",
           "PK/FK",
           "Nullable",
           "Default Value",
-          "Index",
+          "Indexing",
         ];
 
         let tableHtml = `<table class="data-table" id="schema-grid-table-${tableName}"><thead><tr><th class="row-header">#</th>`;
@@ -117,6 +134,24 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
             tableHtml += `<tr><td class="row-header" data-row-idx="${rowIndex}">${rowIndex + 1}</td>`;
 
             columns.forEach((cKey, cIdx) => {
+              if (cKey === "indexing") {
+                if (rowIndex === 0) {
+                  const numRows =
+                    (displaySchema ? displaySchema.length : 0) + 1; // +1 for ghost row
+                  const idxCount = window.SchemaGrid.indexes.length;
+                  const addedCount =
+                    window.SchemaGrid.pendingIndexEdits.added.length;
+                  const droppedCount =
+                    window.SchemaGrid.pendingIndexEdits.dropped.length;
+                  const total = idxCount + addedCount - droppedCount;
+
+                  tableHtml += `<td class="data-cell manage-indexes-cell" rowspan="${numRows}" style="text-align:center; vertical-align:middle; cursor:pointer; color:var(--color-brand-500); font-weight:500; border-left: 1px solid var(--color-border);">
+                    Manage Indexes (${total})
+                  </td>`;
+                }
+                return; // Skip rendering td for cKey === "indexing" if rowIndex > 0
+              }
+
               let val = col[cKey];
               if (cKey === "isPk") {
                 const isPk = val;
@@ -145,6 +180,7 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
         const ghostIdx = displaySchema ? displaySchema.length : 0;
         tableHtml += `<td class="row-header" data-row-idx="${ghostIdx}">*</td>`;
         columns.forEach((cKey, cIdx) => {
+          if (cKey === "indexing") return;
           tableHtml += `<td class="data-cell ghost-row" data-row-idx="${ghostIdx}" data-col-idx="${cIdx}" data-insert-index="0" data-col-key="${cKey}">+ New</td>`;
         });
         tableHtml += `</tr></tbody></table>`;
@@ -158,7 +194,9 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
               const hasPending =
                 Object.keys(window.SchemaGrid.pendingEdits).length > 0 ||
                 window.SchemaGrid.pendingInserts.length > 1 ||
-                window.SchemaGrid.pendingDeletes.size > 0;
+                window.SchemaGrid.pendingDeletes.size > 0 ||
+                window.SchemaGrid.pendingIndexEdits.added.length > 0 ||
+                window.SchemaGrid.pendingIndexEdits.dropped.length > 0;
               if (hasPending) {
                 alert(
                   "You have unsaved changes! Please press Ctrl+S to save them before sorting.",
@@ -196,7 +234,9 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
 
       window.renderSchemaGrid();
 
-      const searchInput = document.getElementById(`schema-search-val-${tableName}`);
+      const searchInput = document.getElementById(
+        `schema-search-val-${tableName}`,
+      );
       if (searchInput) {
         searchInput.addEventListener("input", (e) => {
           window.SchemaGrid.filterText = e.target.value;
@@ -211,13 +251,17 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
         });
       }
 
-      const refreshBtn = document.getElementById(`btn-refresh-schema-${tableName}`);
+      const refreshBtn = document.getElementById(
+        `btn-refresh-schema-${tableName}`,
+      );
       if (refreshBtn)
         refreshBtn.onclick = () => {
           const hasPending =
             Object.keys(window.SchemaGrid.pendingEdits).length > 0 ||
             window.SchemaGrid.pendingInserts.length > 1 ||
-            window.SchemaGrid.pendingDeletes.size > 0;
+            window.SchemaGrid.pendingDeletes.size > 0 ||
+            window.SchemaGrid.pendingIndexEdits.added.length > 0 ||
+            window.SchemaGrid.pendingIndexEdits.dropped.length > 0;
           if (hasPending) {
             if (
               !confirm(
@@ -226,15 +270,20 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
             )
               return;
           }
-          
+
           window.SchemaGrid.pendingEdits = {};
           window.SchemaGrid.pendingInserts = [{}];
-          window.SchemaGrid.pendingDeletes = new Set();
+          window.SchemaGrid.pendingDeletes.clear();
+          window.SchemaGrid.pendingIndexEdits = { added: [], dropped: [] };
           window.SchemaGrid.history = [];
           window.SchemaGrid.currentTransaction = null;
           window.updateSidebarDirtyState?.();
-          
-          loadTableSchema(tableName, btnElement, document.getElementById(`view-schema-${tableName}`));
+
+          loadTableSchema(
+            tableName,
+            btnElement,
+            document.getElementById(`view-schema-btn-${tableName}`),
+          );
         };
     } else {
       renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;

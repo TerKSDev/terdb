@@ -122,6 +122,32 @@ export async function saveSchemaEdits() {
     );
   }
 
+  // Handle Index Drops
+  if (window.SchemaGrid.pendingIndexEdits) {
+    for (const idxName of window.SchemaGrid.pendingIndexEdits.dropped) {
+      if (idxName && idxName.trim() !== "") {
+        sqls.push(`DROP INDEX "${idxName}";`);
+      }
+    }
+
+    // Handle Index Creates
+    for (const idx of window.SchemaGrid.pendingIndexEdits.added) {
+      let nameStr = "";
+      if (idx.name && idx.name.trim() !== "") {
+        nameStr = `"${idx.name}"`;
+      } else {
+        nameStr = `"idx_${tableName}_${idx.columns.join("_")}_${Date.now()}"`;
+      }
+
+      const uniqueStr = idx.isUnique ? "UNIQUE" : "";
+      const colsStr = idx.columns.map((c) => `"${c}"`).join(", ");
+
+      sqls.push(
+        `CREATE ${uniqueStr} INDEX IF NOT EXISTS ${nameStr} ON "${tableName}" (${colsStr});`,
+      );
+    }
+  }
+
   if (sqls.length === 0) return;
 
   let allSuccess = true;
@@ -176,7 +202,7 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
 
   td.innerHTML =
     newVal ||
-    (td.dataset.insertIndex !== undefined ? "+ New" : "<em>null</em>");
+    (td.dataset.insertIndex !== undefined ? "+ New" : `<span style="color:var(--color-text-soft)">-</span>`);
 
   if (td.dataset.insertIndex !== undefined) {
     const idx = parseInt(td.dataset.insertIndex);
@@ -188,9 +214,11 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
       td.classList.remove("ghost-row");
 
       if (idx === window.SchemaGrid.pendingInserts.length - 1) {
-        td.closest('tr').classList.remove('ghost-row-tr');
+        td.closest("tr").classList.remove("ghost-row-tr");
         window.SchemaGrid.pendingInserts.push({});
-        const tbody = document.querySelector(`#schema-grid-table-${window.AppState.currentTable} tbody`);
+        const tbody = document.querySelector(
+          `#schema-grid-table-${window.AppState.currentTable} tbody`,
+        );
         const tr = document.createElement("tr");
         tr.className = "ghost-row-tr";
         const nextRowIdx = parseInt(td.dataset.rowIdx) + 1;
@@ -203,7 +231,12 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
     }
   } else {
     const originalColName = td.dataset.pk;
-    if (newVal !== td.dataset.original) {
+    
+    // Normalize dataset original for comparison (e.g. "-" is equivalent to "")
+    let originalVal = td.dataset.original;
+    if (originalVal === "-") originalVal = "";
+    
+    if (newVal !== originalVal) {
       if (!window.SchemaGrid.pendingEdits[originalColName])
         window.SchemaGrid.pendingEdits[originalColName] = {};
       window.SchemaGrid.pendingEdits[originalColName][colKey] = newVal;
@@ -251,26 +284,39 @@ export function unmarkSchemaRowDeleted(rowIdx, colName) {
   window.updateSidebarDirtyState?.();
 }
 export function duplicateSchemaRows(rowIndices, columns) {
-  rowIndices.forEach(rowIdx => {
+  rowIndices.forEach((rowIdx) => {
     const t = window.AppState.currentTable;
-    const tr = document.querySelector(`#schema-grid-table-${t} td.data-cell[data-row-idx="${rowIdx}"]`)?.closest("tr");
+    const tr = document
+      .querySelector(
+        `#schema-grid-table-${t} td.data-cell[data-row-idx="${rowIdx}"]`,
+      )
+      ?.closest("tr");
     if (!tr || tr.classList.contains("ghost-row-tr")) return;
 
-    let ghostTr = document.querySelector(`#schema-grid-table-${t} .ghost-row-tr`);
+    let ghostTr = document.querySelector(
+      `#schema-grid-table-${t} .ghost-row-tr`,
+    );
     if (!ghostTr) return;
 
     columns.forEach((col, cIdx) => {
       const sourceTd = tr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
-      const targetTd = ghostTr.querySelector(`td.data-cell[data-col-idx="${cIdx}"]`);
+      const targetTd = ghostTr.querySelector(
+        `td.data-cell[data-col-idx="${cIdx}"]`,
+      );
       if (sourceTd && targetTd) {
-        let val = sourceTd.dataset.insertIndex !== undefined 
-          ? window.SchemaGrid.pendingInserts[sourceTd.dataset.insertIndex][col]
-          : (sourceTd.classList.contains("cell-edited") ? window.SchemaGrid.pendingEdits[sourceTd.dataset.pk]?.[col] : sourceTd.dataset.original);
-        
+        let val =
+          sourceTd.dataset.insertIndex !== undefined
+            ? window.SchemaGrid.pendingInserts[sourceTd.dataset.insertIndex][
+                col
+              ]
+            : sourceTd.classList.contains("cell-edited")
+              ? window.SchemaGrid.pendingEdits[sourceTd.dataset.pk]?.[col]
+              : sourceTd.dataset.original;
+
         if (val !== undefined && val !== null && val !== "null") {
           // Auto append _copy for the 'name' column to avoid immediate conflict
           if (col === "name") {
-             val = val + "_copy";
+            val = val + "_copy";
           }
           updateSchemaCell(targetTd, val, columns, true);
         }

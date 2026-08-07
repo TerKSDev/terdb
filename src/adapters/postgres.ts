@@ -80,6 +80,54 @@ export class PostgresAdapter implements DBAdapter {
     });
   }
 
+  async getIndexes(tableName: string): Promise<import("../core/types.js").IndexSchema[]> {
+    await this.connectIfNecessary();
+    
+    const query = `
+      SELECT
+          i.relname as index_name,
+          a.attname as column_name,
+          ix.indisunique as is_unique,
+          ix.indisprimary as is_primary
+      FROM
+          pg_class t,
+          pg_class i,
+          pg_index ix,
+          pg_attribute a
+      WHERE
+          t.oid = ix.indrelid
+          AND i.oid = ix.indexrelid
+          AND a.attrelid = t.oid
+          AND a.attnum = ANY(ix.indkey)
+          AND t.relkind = 'r'
+          AND t.relname = $1
+      ORDER BY
+          i.relname, a.attnum;
+    `;
+    
+    const res = await this.client!.query(query, [tableName]);
+    const rows = res.rows;
+    
+    const indexMap = new Map<string, import("../core/types.js").IndexSchema>();
+    
+    for (const row of rows) {
+      if (row.is_primary) continue; // Skip primary key indexes
+      
+      const idxName = row.index_name;
+      if (!indexMap.has(idxName)) {
+        indexMap.set(idxName, {
+          name: idxName,
+          columns: [],
+          isUnique: row.is_unique
+        });
+      }
+      
+      indexMap.get(idxName)!.columns.push(row.column_name);
+    }
+    
+    return Array.from(indexMap.values());
+  }
+
   async getData(
     tableName: string,
     limit: number = 50,

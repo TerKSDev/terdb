@@ -31,23 +31,36 @@ window.updateSidebarDirtyState = function () {
     const text = btn.querySelector("span").textContent;
     const tName = tableName || text.replace(/\s*\*$/, "");
     const state = window.TableStates[tName];
-    
+
     let isDirty = false;
     if (state) {
       if (state.dataGrid) {
         const dg = state.dataGrid;
-        if (Object.keys(dg.pendingEdits || {}).length > 0 || (dg.pendingInserts && dg.pendingInserts.length > 1) || (dg.pendingDeletes && dg.pendingDeletes.size > 0)) {
+        if (
+          Object.keys(dg.pendingEdits || {}).length > 0 ||
+          (dg.pendingInserts && dg.pendingInserts.length > 1) ||
+          (dg.pendingDeletes && dg.pendingDeletes.size > 0)
+        ) {
           isDirty = true;
         }
       }
       if (state.schemaGrid) {
         const sg = state.schemaGrid;
-        if (Object.keys(sg.pendingEdits || {}).length > 0 || (sg.pendingInserts && sg.pendingInserts.length > 1) || (sg.pendingDeletes && sg.pendingDeletes.size > 0)) {
+        const hasIndexEdits =
+          sg.pendingIndexEdits &&
+          (sg.pendingIndexEdits.added.length > 0 ||
+            sg.pendingIndexEdits.dropped.length > 0);
+        if (
+          Object.keys(sg.pendingEdits || {}).length > 0 ||
+          (sg.pendingInserts && sg.pendingInserts.length > 1) ||
+          (sg.pendingDeletes && sg.pendingDeletes.size > 0) ||
+          hasIndexEdits
+        ) {
           isDirty = true;
         }
       }
     }
-    
+
     let span = btn.querySelector("span");
     let baseText = span.textContent.replace(/\s*\*$/, "");
     if (isDirty) {
@@ -71,13 +84,16 @@ window.handleSwitchTab = function (tab) {
     // These are global tabs, clear table selection
     window.AppState.currentTable = null;
     window.AppState.currentTableBtnElement = null;
-    document.querySelectorAll(".table-btn").forEach((b) => b.classList.remove("active"));
+    document
+      .querySelectorAll(".table-btn")
+      .forEach((b) => b.classList.remove("active"));
   } else if (tab === "data-btn" || tab === "schema-btn") {
     // These tabs require a table, auto-select first one if none selected
     if (!window.AppState.currentTable) {
       const firstTableBtn = document.querySelector(".table-btn");
       if (firstTableBtn) {
-        window.AppState.currentTable = firstTableBtn.querySelector("span").textContent;
+        window.AppState.currentTable =
+          firstTableBtn.querySelector("span").textContent;
         window.AppState.currentTableBtnElement = firstTableBtn;
         firstTableBtn.classList.add("active");
       }
@@ -100,17 +116,21 @@ window.renderEmptyState = function (container) {
 };
 
 window.renderCurrentView = function (whereClause = "", preserveState = false) {
-  const isGlobalTab = ["erd-btn", "sql-btn", "status-btn"].includes(window.AppState.currentTab);
+  const isGlobalTab = ["erd-btn", "sql-btn", "status-btn"].includes(
+    window.AppState.currentTab,
+  );
   const mainContent = document.getElementById("main-content");
-  
+
   // Hide all view containers
-  document.querySelectorAll(".view-container").forEach(el => el.style.display = "none");
-  
+  document
+    .querySelectorAll(".view-container")
+    .forEach((el) => (el.style.display = "none"));
+
   // Determine view ID
-  const viewId = isGlobalTab 
-    ? `view-${window.AppState.currentTab}` 
+  const viewId = isGlobalTab
+    ? `view-${window.AppState.currentTab}`
     : `view-${window.AppState.currentTab}-${window.AppState.currentTable}`;
-    
+
   let container = document.getElementById(viewId);
   if (!container) {
     container = document.createElement("div");
@@ -123,14 +143,14 @@ window.renderCurrentView = function (whereClause = "", preserveState = false) {
     container.style.overflow = "hidden";
     mainContent.appendChild(container);
   }
-  
+
   container.style.display = "flex";
-  
+
   if (!window.AppState.currentTable && !isGlobalTab) {
     window.renderEmptyState(container);
     return;
   }
-  
+
   const tableName = window.AppState.currentTable;
   if (tableName && !window.TableStates[tableName]) {
     window.TableStates[tableName] = { dataGrid: null, schemaGrid: null };
@@ -141,21 +161,38 @@ window.renderCurrentView = function (whereClause = "", preserveState = false) {
     if (window.TableStates[tableName].dataGrid) {
       window.DataGrid = window.TableStates[tableName].dataGrid;
     }
-    
+
     // Only fetch if it's new or not cached, unless refresh is triggered (preserveState handles sorting logic internally)
     if (!window.TableStates[tableName].dataGrid || !container.hasChildNodes()) {
-      loadTableData(tableName, window.AppState.currentTableBtnElement, whereClause, preserveState, container);
+      loadTableData(
+        tableName,
+        window.AppState.currentTableBtnElement,
+        whereClause,
+        preserveState,
+        container,
+      );
     }
   } else if (window.AppState.currentTab === "schema-btn") {
     if (window.TableStates[tableName].schemaGrid) {
       window.SchemaGrid = window.TableStates[tableName].schemaGrid;
     }
-    if (!window.TableStates[tableName].schemaGrid || !container.hasChildNodes()) {
-      loadTableSchema(tableName, window.AppState.currentTableBtnElement, container);
+    if (
+      !window.TableStates[tableName].schemaGrid ||
+      !container.hasChildNodes()
+    ) {
+      loadTableSchema(
+        tableName,
+        window.AppState.currentTableBtnElement,
+        container,
+      );
     }
   } else if (window.AppState.currentTab === "console-btn") {
     if (!container.hasChildNodes()) {
-      loadSqlConsole(tableName, window.AppState.currentTableBtnElement, container);
+      loadSqlConsole(
+        tableName,
+        window.AppState.currentTableBtnElement,
+        container,
+      );
     }
   } else if (window.AppState.currentTab === "erd-btn") {
     if (!container.hasChildNodes()) {
@@ -166,9 +203,11 @@ window.renderCurrentView = function (whereClause = "", preserveState = false) {
       container.innerHTML = `<div style='padding:24px; color: var(--color-text-soft);'>Database Status Dashboard coming soon!</div>`;
     }
   }
-  
+
   // Highlight active sidebar btn since DOM cache might lose active styling dynamically
-  document.querySelectorAll(".table-btn").forEach((b) => b.classList.remove("active"));
+  document
+    .querySelectorAll(".table-btn")
+    .forEach((b) => b.classList.remove("active"));
   if (window.AppState.currentTableBtnElement) {
     window.AppState.currentTableBtnElement.classList.add("active");
   }
@@ -269,26 +308,32 @@ document.addEventListener("DOMContentLoaded", () => {
       let rowsToProcess = [rowIdx];
       const grid = isData ? window.DataGrid : window.SchemaGrid;
       if (grid && grid.selection && grid.selection.startRow !== -1) {
-          const s = grid.selection;
-          const minR = Math.min(s.startRow, s.endRow);
-          const maxR = Math.max(s.startRow, s.endRow);
-          if (rowIdx >= minR && rowIdx <= maxR) {
-              rowsToProcess = [];
-              for (let i = minR; i <= maxR; i++) rowsToProcess.push(i);
-          }
+        const s = grid.selection;
+        const minR = Math.min(s.startRow, s.endRow);
+        const maxR = Math.max(s.startRow, s.endRow);
+        if (rowIdx >= minR && rowIdx <= maxR) {
+          rowsToProcess = [];
+          for (let i = minR; i <= maxR; i++) rowsToProcess.push(i);
+        }
       }
 
       if (isData) {
         import("./data/core.js").then((m) => {
           window.DataGrid.currentTransaction = [];
           if (actionType === "delete") {
-             rowsToProcess.forEach(r => m.markRowDeleted(r));
+            rowsToProcess.forEach((r) => m.markRowDeleted(r));
           } else if (actionType === "duplicate") {
-             m.duplicateDataRows(rowsToProcess, window.DataGrid.schema.map(c => c.name));
-             setTimeout(() => {
-               const tableContainer = document.getElementById(`data-grid-container-${window.AppState.currentTable}`);
-               if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
-             }, 50);
+            m.duplicateDataRows(
+              rowsToProcess,
+              window.DataGrid.schema.map((c) => c.name),
+            );
+            setTimeout(() => {
+              const tableContainer = document.getElementById(
+                `data-grid-container-${window.AppState.currentTable}`,
+              );
+              if (tableContainer)
+                tableContainer.scrollTop = tableContainer.scrollHeight;
+            }, 50);
           }
           if (window.DataGrid.currentTransaction.length > 0)
             window.DataGrid.history.push(window.DataGrid.currentTransaction);
@@ -298,24 +343,38 @@ document.addEventListener("DOMContentLoaded", () => {
         import("./schema/core.js").then((m) => {
           window.SchemaGrid.currentTransaction = [];
           if (actionType === "delete") {
-             rowsToProcess.forEach(r => m.markSchemaRowDeleted(r));
+            rowsToProcess.forEach((r) => m.markSchemaRowDeleted(r));
           } else if (actionType === "duplicate") {
-             m.duplicateSchemaRows(rowsToProcess, ["name", "type", "isPk", "nullable", "defaultValue", "Index"]);
-             setTimeout(() => {
-               const tableContainer = document.getElementById(`schema-grid-container-${window.AppState.currentTable}`);
-               if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
-             }, 50);
+            m.duplicateSchemaRows(rowsToProcess, [
+              "name",
+              "type",
+              "isPk",
+              "nullable",
+              "defaultValue",
+              "Index",
+            ]);
+            setTimeout(() => {
+              const tableContainer = document.getElementById(
+                `schema-grid-container-${window.AppState.currentTable}`,
+              );
+              if (tableContainer)
+                tableContainer.scrollTop = tableContainer.scrollHeight;
+            }, 50);
           }
           if (window.SchemaGrid.currentTransaction.length > 0)
-            window.SchemaGrid.history.push(window.SchemaGrid.currentTransaction);
+            window.SchemaGrid.history.push(
+              window.SchemaGrid.currentTransaction,
+            );
           window.SchemaGrid.currentTransaction = null;
         });
       }
       menu.remove();
     };
 
-    document.getElementById("cmenu-duplicate").onclick = () => handleContextMenuAction("duplicate");
-    document.getElementById("cmenu-delete").onclick = () => handleContextMenuAction("delete");
+    document.getElementById("cmenu-duplicate").onclick = () =>
+      handleContextMenuAction("duplicate");
+    document.getElementById("cmenu-delete").onclick = () =>
+      handleContextMenuAction("delete");
 
     const closeMenu = (e2) => {
       if (!menu.contains(e2.target)) {
@@ -360,7 +419,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const maxCols = isData ? grid.schema.length : 5;
       const t = window.AppState?.currentTable;
       const rowElements = document.querySelectorAll(
-        isData ? `#data-grid-table-${t} tbody tr` : `#schema-grid-table-${t} tbody tr`,
+        isData
+          ? `#data-grid-table-${t} tbody tr`
+          : `#schema-grid-table-${t} tbody tr`,
       );
       const maxRows = rowElements.length > 0 ? rowElements.length - 1 : 0;
 
@@ -383,7 +444,9 @@ document.addEventListener("DOMContentLoaded", () => {
         s.endCol = targetCol;
       }
 
-      const tableId = isData ? `data-grid-table-${t}` : `schema-grid-table-${t}`;
+      const tableId = isData
+        ? `data-grid-table-${t}`
+        : `schema-grid-table-${t}`;
       import("../components/grid.js").then((m) =>
         m.renderSelection(tableId, grid),
       );
@@ -424,7 +487,9 @@ document.addEventListener("DOMContentLoaded", () => {
         import("./data/core.js").then((m) => {
           window.DataGrid.currentTransaction = [];
           document
-            .querySelectorAll(`#data-grid-table-${window.AppState.currentTable} .cell-in-range`)
+            .querySelectorAll(
+              `#data-grid-table-${window.AppState.currentTable} .cell-in-range`,
+            )
             .forEach((td) =>
               m.updateCell(
                 td,
@@ -441,7 +506,9 @@ document.addEventListener("DOMContentLoaded", () => {
           window.SchemaGrid.currentTransaction = [];
           const cols = ["name", "type", "isPk", "nullable", "defaultValue"];
           document
-            .querySelectorAll(`#schema-grid-table-${window.AppState.currentTable} .cell-in-range`)
+            .querySelectorAll(
+              `#schema-grid-table-${window.AppState.currentTable} .cell-in-range`,
+            )
             .forEach((td) => {
               if (
                 td.dataset.insertIndex !== undefined ||

@@ -81,6 +81,31 @@ export class MysqlAdapter implements DBAdapter {
     });
   }
 
+  async getIndexes(tableName: string): Promise<import("../core/types.js").IndexSchema[]> {
+    const pool = await this.getPool();
+    
+    const [rows] = await pool.query(`SHOW INDEX FROM ${this.quoteIdentifier(tableName)}`) as any[];
+    
+    const indexMap = new Map<string, import("../core/types.js").IndexSchema>();
+    
+    for (const row of rows) {
+      if (row.Key_name === 'PRIMARY') continue; // Skip primary key
+      
+      const idxName = row.Key_name;
+      if (!indexMap.has(idxName)) {
+        indexMap.set(idxName, {
+          name: idxName,
+          columns: [],
+          isUnique: row.Non_unique === 0
+        });
+      }
+      
+      indexMap.get(idxName)!.columns.push(row.Column_name);
+    }
+    
+    return Array.from(indexMap.values());
+  }
+
   async getData(
     tableName: string,
     limit: number = 50,

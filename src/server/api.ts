@@ -53,6 +53,16 @@ export function registerApiRoutes(app: Hono, dbConfig: DBConfig) {
     }
   });
 
+  api.get("/tables/:name/indexes", async (c) => {
+    const tableName = c.req.param("name");
+    try {
+      const indexes = await adapter.getIndexes(tableName);
+      return c.json({ success: true, data: indexes });
+    } catch (e: any) {
+      return c.json({ success: false, error: e.message }, 500);
+    }
+  });
+
   api.get("/tables/:name/data", async (c) => {
     const tableName = c.req.param("name");
     const limit = parseInt(c.req.query("limit") || "50", 10);

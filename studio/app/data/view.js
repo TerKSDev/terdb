@@ -231,14 +231,14 @@ export async function loadTableData(
             );
             if (!confirmDiscard) return;
           }
-          
+
           window.DataGrid.pendingEdits = {};
           window.DataGrid.pendingInserts = [{}];
           window.DataGrid.pendingDeletes = new Set();
           window.DataGrid.history = [];
           window.DataGrid.currentTransaction = null;
           window.updateSidebarDirtyState?.();
-          
+
           executeSearch(false);
         };
 
