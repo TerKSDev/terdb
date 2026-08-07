@@ -5,6 +5,7 @@ import { initSidebar } from "../components/sidebar.js";
 import { loadTableData, saveDataGridEdits } from "./data/view.js";
 import { loadTableSchema, saveSchemaEdits } from "./schema/view.js";
 import { loadSqlConsole } from "./console/view.js";
+import { fetchConfig } from "../../lib/api.js";
 
 const header = document.getElementById("header-container");
 const sidebar = document.getElementById("sidebar-container");
@@ -18,7 +19,14 @@ window.AppState = {
   currentTable: null,
   currentTab: "data-btn",
   currentTableBtnElement: null,
+  dbType: null,
 };
+
+fetchConfig().then((res) => {
+  if (res && res.success && res.data) {
+    window.AppState.dbType = res.data.dbType;
+  }
+});
 
 window.TableStates = {};
 window.ViewCache = {};

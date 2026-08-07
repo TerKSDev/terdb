@@ -70,9 +70,22 @@ export async function saveSchemaEdits() {
       if (defVal)
         constraints.push(`DEFAULT '${String(defVal).replace(/'/g, "''")}'`);
 
-      sqls.push(
-        `ALTER TABLE "${tableName}" MODIFY COLUMN "${newName}" ${type} ${constraints.join(" ")};`,
-      );
+      if (window.AppState.dbType === "sqlite") {
+        alert("SQLite does not support altering column types directly. Please recreate the table or use Raw SQL.");
+        return;
+      } else if (window.AppState.dbType === "postgres") {
+        sqls.push(`ALTER TABLE "${tableName}" ALTER COLUMN "${newName}" TYPE ${type};`);
+        if (constraints.includes("NOT NULL")) {
+          sqls.push(`ALTER TABLE "${tableName}" ALTER COLUMN "${newName}" SET NOT NULL;`);
+        }
+        if (defVal) {
+          sqls.push(`ALTER TABLE "${tableName}" ALTER COLUMN "${newName}" SET DEFAULT '${String(defVal).replace(/'/g, "''")}';`);
+        }
+      } else {
+        sqls.push(
+          `ALTER TABLE "${tableName}" MODIFY COLUMN "${newName}" ${type} ${constraints.join(" ")};`,
+        );
+      }
     }
   }
 

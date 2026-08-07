@@ -4,6 +4,12 @@ export async function fetchTables() {
   return data;
 }
 
+export async function fetchConfig() {
+  const res = await fetch("/api/config");
+  const data = await res.json();
+  return data;
+}
+
 export async function fetchTableStats() {
   const res = await fetch("/api/tables/stats");
   const data = await res.json();

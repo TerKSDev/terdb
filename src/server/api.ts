@@ -18,6 +18,10 @@ export function registerApiRoutes(app: Hono, dbConfig: DBConfig) {
     }
   });
 
+  api.get("/config", (c) => {
+    return c.json({ success: true, data: { dbType: dbConfig.type } });
+  });
+
   api.get("/tables/stats", async (c) => {
     try {
       const tables = await adapter.getTables();
