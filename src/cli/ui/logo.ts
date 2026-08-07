@@ -68,7 +68,7 @@ export function printCustomDashboard(
 
 export function printDashboard(dbConfig: DBConfigProps) {
   const headerTitle =
-    " Lightweight Interactive TUI Database Client  •  v1.1.2 ";
+    " Lightweight Interactive TUI Database Client  •  v1.1.3 ";
 
   let dbTypeVal = "None";
   let targetVal = "-";
