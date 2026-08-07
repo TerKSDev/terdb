@@ -5,7 +5,7 @@ import { initSidebar } from "../components/sidebar.js";
 import { loadTableData, saveDataGridEdits } from "./data/view.js";
 import { loadTableSchema, saveSchemaEdits } from "./schema/view.js";
 import { loadSqlConsole } from "./console/view.js";
-import { fetchConfig } from "../../lib/api.js";
+import { fetchConfig } from "../lib/api.js";
 
 const header = document.getElementById("header-container");
 const sidebar = document.getElementById("sidebar-container");
