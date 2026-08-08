@@ -11,12 +11,17 @@ export async function initSidebar() {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "table-btn";
-        btn.innerHTML = `<span>${tableName}</span><span class="table-btn-badge" id="badge-${tableName}" style="display:none;"></span>`;
+        btn.dataset.table = tableName;
+        btn.innerHTML = /* html */ `<span>${tableName}</span><span class="table-btn-badge" id="badge-${tableName}" style="display:none;"></span>`;
         btn.onclick = () => {
           window.AppState.currentTable = tableName;
           window.AppState.currentTableBtnElement = btn;
-          
-          if (window.AppState.currentTab === "erd-btn" || window.AppState.currentTab === "sql-btn" || window.AppState.currentTab === "status-btn") {
+
+          if (
+            window.AppState.currentTab === "erd-btn" ||
+            window.AppState.currentTab === "sql-btn" ||
+            window.AppState.currentTab === "status-btn"
+          ) {
             window.handleSwitchTab("data-btn");
           } else {
             window.renderCurrentView();
@@ -41,7 +46,7 @@ export async function initSidebar() {
         })
         .catch((e) => console.error("Failed to load table stats:", e));
     } else {
-      tableNav.innerHTML = `<div id="not-found-msg">No Tables Found.</div>`;
+      tableNav.innerHTML = /* html */ `<div id="not-found-msg">No Tables Found.</div>`;
       window.handleSwitchTab("data-btn");
     }
   } catch (err) {

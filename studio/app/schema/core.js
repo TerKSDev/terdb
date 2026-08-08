@@ -182,7 +182,18 @@ export async function saveSchemaEdits() {
   }
 
   if (allSuccess) {
-    window.renderCurrentView();
+    if (window.SchemaGrid) {
+      window.SchemaGrid.pendingEdits = {};
+      window.SchemaGrid.pendingInserts = [{}];
+      window.SchemaGrid.pendingDeletes = new Set();
+      window.SchemaGrid.pendingIndexEdits = { added: [], dropped: [] };
+      window.SchemaGrid.history = [];
+      window.SchemaGrid.currentTransaction = null;
+    }
+    const refreshBtn = document.getElementById(`btn-refresh-schema-${tableName}`);
+    if (refreshBtn) refreshBtn.click();
+    else window.renderCurrentView();
+
     if (window.showToast) window.showToast("Schema saved successfully!");
   } else {
     if (errorMsg.includes('near "MODIFY": syntax error')) {
@@ -241,6 +252,12 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
         });
         tbody.appendChild(tr);
       }
+    } else {
+      if (window.SchemaGrid.pendingInserts[idx]) {
+        delete window.SchemaGrid.pendingInserts[idx][colKey];
+      }
+      td.classList.remove("cell-edited");
+      td.classList.add("ghost-row");
     }
   } else {
     const originalColName = td.dataset.pk;
@@ -258,8 +275,12 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
     } else {
       td.classList.remove("cell-edited");
       td.classList.remove("cell-error");
-      if (window.SchemaGrid.pendingEdits[originalColName])
+      if (window.SchemaGrid.pendingEdits[originalColName]) {
         delete window.SchemaGrid.pendingEdits[originalColName][colKey];
+        if (Object.keys(window.SchemaGrid.pendingEdits[originalColName]).length === 0) {
+          delete window.SchemaGrid.pendingEdits[originalColName];
+        }
+      }
     }
   }
   window.updateSidebarDirtyState?.();
@@ -267,7 +288,7 @@ export function updateSchemaCell(td, newVal, columns, recordHistory = true) {
 
 export function markSchemaRowDeleted(rowIdx, recordHistory = true) {
   const tr = document
-    .querySelector(`#schema-grid-table td.data-cell[data-row-idx="${rowIdx}"]`)
+    .querySelector(`#schema-grid-table-${window.AppState.currentTable} td.data-cell[data-row-idx="${rowIdx}"]`)
     ?.closest("tr");
   if (!tr || tr.classList.contains("ghost-row-tr")) return;
   if (tr.classList.contains("row-deleted")) return;
@@ -290,7 +311,7 @@ export function markSchemaRowDeleted(rowIdx, recordHistory = true) {
 
 export function unmarkSchemaRowDeleted(rowIdx, colName) {
   const tr = document
-    .querySelector(`#schema-grid-table td.data-cell[data-row-idx="${rowIdx}"]`)
+    .querySelector(`#schema-grid-table-${window.AppState.currentTable} td.data-cell[data-row-idx="${rowIdx}"]`)
     ?.closest("tr");
   if (tr) tr.classList.remove("row-deleted");
   window.SchemaGrid.pendingDeletes.delete(colName);

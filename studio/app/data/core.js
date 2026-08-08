@@ -72,7 +72,18 @@ export async function saveDataGridEdits() {
   }
 
   if (allSuccess) {
-    window.renderCurrentView();
+    if (window.DataGrid) {
+      window.DataGrid.pendingEdits = {};
+      window.DataGrid.pendingInserts = [{}];
+      window.DataGrid.pendingDeletes = new Set();
+      window.DataGrid.history = [];
+      window.DataGrid.currentTransaction = null;
+      if (window.DataGrid.refreshData) {
+        window.DataGrid.refreshData();
+      } else {
+        window.renderCurrentView();
+      }
+    }
     if (window.showToast) window.showToast("Data saved successfully!");
   } else {
     if (window.showToast) window.showToast("Save failed: " + errorMsg, "error");
@@ -121,6 +132,12 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
         });
         tbody.appendChild(tr);
       }
+    } else {
+      if (window.DataGrid.pendingInserts[idx]) {
+        delete window.DataGrid.pendingInserts[idx][colName];
+      }
+      td.classList.remove("cell-edited");
+      td.classList.add("ghost-row");
     }
   } else {
     const pk = td.dataset.pk;
@@ -133,8 +150,12 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
     } else {
       td.classList.remove("cell-edited");
       td.classList.remove("cell-error");
-      if (window.DataGrid.pendingEdits[pk])
+      if (window.DataGrid.pendingEdits[pk]) {
         delete window.DataGrid.pendingEdits[pk][colName];
+        if (Object.keys(window.DataGrid.pendingEdits[pk]).length === 0) {
+          delete window.DataGrid.pendingEdits[pk];
+        }
+      }
     }
   }
   window.updateSidebarDirtyState?.();
@@ -142,7 +163,7 @@ export function updateCell(td, newVal, columns, recordHistory = true) {
 
 export function markRowDeleted(rowIdx, recordHistory = true) {
   const tr = document
-    .querySelector(`td.data-cell[data-row-idx="${rowIdx}"]`)
+    .querySelector(`#data-grid-table-${window.AppState.currentTable} td.data-cell[data-row-idx="${rowIdx}"]`)
     ?.closest("tr");
   if (!tr || tr.classList.contains("ghost-row-tr")) return;
 
@@ -166,7 +187,7 @@ export function markRowDeleted(rowIdx, recordHistory = true) {
 
 export function unmarkRowDeleted(rowIdx, pk) {
   const tr = document
-    .querySelector(`td.data-cell[data-row-idx="${rowIdx}"]`)
+    .querySelector(`#data-grid-table-${window.AppState.currentTable} td.data-cell[data-row-idx="${rowIdx}"]`)
     ?.closest("tr");
   if (tr) tr.classList.remove("row-deleted");
   window.DataGrid.pendingDeletes.delete(pk);

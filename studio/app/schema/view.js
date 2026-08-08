@@ -1,6 +1,6 @@
 import { fetchTableSchema, fetchTableIndexes } from "../../lib/api.js";
 import { bindSchemaCellEditor } from "./events.js";
-import { bindColumnResizer, bindCellSelection } from "../../components/grid.js";
+import { bindColumnResizer, bindCellSelection } from "../grid/view.js";
 
 export { saveSchemaEdits } from "./core.js";
 
@@ -52,7 +52,7 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
         window.TableStates[tableName].schemaGrid = window.SchemaGrid;
       }
 
-      renderTarget.innerHTML = `
+      renderTarget.innerHTML = /* html */ `
         <div class="toolbar">
           <div class="filter-group">
             <div class="filter-icon-container">
@@ -286,9 +286,9 @@ export async function loadTableSchema(tableName, btnElement, container = null) {
           );
         };
     } else {
-      renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
+      renderTarget.innerHTML = /* html */ `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
     }
   } catch (err) {
-    renderTarget.innerHTML = `<div style="padding:24px; color:red;">Failed to load schema: ${err.message}</div>`;
+    renderTarget.innerHTML = /* html */ `<div style="padding:24px; color:red;">Failed to load schema: ${err.message}</div>`;
   }
 }

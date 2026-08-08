@@ -1,7 +1,7 @@
 export function renderSelection(tableId, gridState) {
   document
     .querySelectorAll(
-      `#${tableId} .cell-in-range, #${tableId} .cell-selected, #${tableId} .range-top, #${tableId} .range-bottom, #${tableId} .range-left, #${tableId} .range-right, #${tableId} .row-header-selected`
+      `#${tableId} .cell-in-range, #${tableId} .cell-selected, #${tableId} .range-top, #${tableId} .range-bottom, #${tableId} .range-left, #${tableId} .range-right, #${tableId} .row-header-selected`,
     )
     .forEach((el) => {
       el.classList.remove(
@@ -11,7 +11,7 @@ export function renderSelection(tableId, gridState) {
         "range-bottom",
         "range-left",
         "range-right",
-        "row-header-selected"
+        "row-header-selected",
       );
     });
 
@@ -50,7 +50,12 @@ export function renderSelection(tableId, gridState) {
   }
 }
 
-export function bindCellSelection(tableContainer, tableId, gridState, columnsLength) {
+export function bindCellSelection(
+  tableContainer,
+  tableId,
+  gridState,
+  columnsLength,
+) {
   tableContainer.addEventListener("mousedown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
 
@@ -112,12 +117,12 @@ export function bindCellSelection(tableContainer, tableId, gridState, columnsLen
   tableContainer.addEventListener("contextmenu", (e) => {
     const rowHeader = e.target.closest("td.row-header");
     if (!rowHeader) return;
-    
+
     const r = parseInt(rowHeader.dataset.rowIdx);
     const s = gridState.selection;
     const minR = Math.min(s.startRow, s.endRow);
     const maxR = Math.max(s.startRow, s.endRow);
-    
+
     // Ensure the right-clicked row is within the current selection
     if (s.startRow !== -1 && r >= minR && r <= maxR) {
       e.preventDefault();
@@ -145,7 +150,7 @@ function showContextMenu(x, y, gridState, tableId) {
   const maxR = Math.max(s.startRow, s.endRow);
   const rowCount = maxR - minR + 1;
 
-  menu.innerHTML = `
+  menu.innerHTML = /* html */ `
     <div class="menu-item delete-action">
       <span class="material-symbols-outlined">delete</span>
       Delete ${rowCount} Row${rowCount > 1 ? "s" : ""}
@@ -159,13 +164,15 @@ function showContextMenu(x, y, gridState, tableId) {
   menu.querySelector(".delete-action").onclick = (e) => {
     e.stopPropagation();
     menu.style.display = "none";
-    
+
     // Find all primary keys or row indices for the selected rows
-    const trs = document.querySelectorAll(`#${tableId} tbody tr:not(.ghost-row-tr)`);
+    const trs = document.querySelectorAll(
+      `#${tableId} tbody tr:not(.ghost-row-tr)`,
+    );
     for (let i = minR; i <= maxR; i++) {
       const tr = trs[i];
       if (!tr) continue;
-      
+
       const firstDataCell = tr.querySelector("td.data-cell");
       if (firstDataCell) {
         let pkValue = firstDataCell.dataset.pk;
@@ -176,7 +183,7 @@ function showContextMenu(x, y, gridState, tableId) {
         }
       }
     }
-    
+
     // Trigger UI updates (like enabling save button)
     const saveBtn = document.getElementById("btn-save-changes");
     if (saveBtn) saveBtn.classList.add("has-changes");

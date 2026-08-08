@@ -1,5 +1,5 @@
 import { fetchTableSchema, fetchTableWithName } from "../../lib/api.js";
-import { bindColumnResizer, bindCellSelection } from "../../components/grid.js";
+import { bindColumnResizer, bindCellSelection } from "../grid/view.js";
 import { bindCellEditor } from "./events.js";
 import { getFilterQuery, generateRowHtml } from "./utils.js";
 
@@ -279,10 +279,11 @@ export async function loadTableData(
               );
               if (!tbody) return;
 
-              const ghostRowTr = tbody.querySelector(".ghost-row-tr");
-              if (ghostRowTr) tbody.removeChild(ghostRowTr);
-
+              const firstInsertRow = tbody
+                .querySelector("td[data-insert-index]")
+                ?.closest("tr");
               const startIdx = window.DataGrid.pagination.offset;
+
               moreRows.forEach((row, i) => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = generateRowHtml(
@@ -291,18 +292,30 @@ export async function loadTableData(
                   pkColumn,
                   columns,
                 );
-                tbody.appendChild(tr);
+                if (firstInsertRow) {
+                  tbody.insertBefore(tr, firstInsertRow);
+                } else {
+                  tbody.appendChild(tr);
+                }
               });
 
-              if (ghostRowTr) {
-                const newGhostIdx = startIdx + moreRows.length;
-                const rowHeader = ghostRowTr.querySelector(".row-header");
-                if (rowHeader) rowHeader.dataset.rowIdx = newGhostIdx;
-                ghostRowTr.querySelectorAll(".ghost-row").forEach((td) => {
-                  td.dataset.rowIdx = newGhostIdx;
-                });
-                tbody.appendChild(ghostRowTr);
-              }
+              let currentIdx = startIdx + moreRows.length;
+              const insertedTrs = tbody.querySelectorAll(
+                "td[data-insert-index]",
+              );
+              const processedTrs = new Set();
+              insertedTrs.forEach((td) => {
+                const tr = td.closest("tr");
+                if (processedTrs.has(tr)) return;
+                processedTrs.add(tr);
+
+                const rowHeader = tr.querySelector(".row-header");
+                if (rowHeader) rowHeader.dataset.rowIdx = currentIdx;
+                tr.querySelectorAll("td.data-cell").forEach(
+                  (c) => (c.dataset.rowIdx = currentIdx),
+                );
+                currentIdx++;
+              });
             }
           } catch (e) {
             window.DataGrid.pagination.isLoading = false;
@@ -324,9 +337,9 @@ export async function loadTableData(
         }, 50);
       }
     } else {
-      renderTarget.innerHTML = `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
+      renderTarget.innerHTML = /* html */ `<div style="padding:24px; color:red;">Error: ${res.error}</div>`;
     }
   } catch (err) {
-    renderTarget.innerHTML = `<div style="padding:24px; color:red;">Failed to load data: ${err.message}</div>`;
+    renderTarget.innerHTML = /* html */ `<div style="padding:24px; color:red;">Failed to load data: ${err.message}</div>`;
   }
 }

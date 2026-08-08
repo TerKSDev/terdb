@@ -1,4 +1,5 @@
 import { updateCell } from "./core.js";
+import { executeRawQuery } from "../../lib/api.js";
 
 export function bindCellEditor(tableContainer, schema, columns) {
   tableContainer.addEventListener("dblclick", (e) => {
@@ -28,9 +29,8 @@ export function bindCellEditor(tableContainer, schema, columns) {
       inputEl.appendChild(loadingOpt);
       
       // Fetch FK options asynchronously
-      import("../../lib/api.js").then(({ executeRawQuery }) => {
-        const { table, column } = colSchema.fkTarget;
-        executeRawQuery(`SELECT * FROM "${table}" LIMIT 100`).then(res => {
+      const { table, column } = colSchema.fkTarget;
+      executeRawQuery(`SELECT * FROM "${table}" LIMIT 100`).then(res => {
           if (res.success && res.data && res.data.rows) {
             inputEl.innerHTML = ""; // clear loading
             
@@ -72,7 +72,6 @@ export function bindCellEditor(tableContainer, schema, columns) {
         }).catch(err => {
           loadingOpt.textContent = "Error loading options";
         });
-      });
     } else if (isEnum) {
       const enumMatch = colSchema.type.match(/enum\((.*?)\)/i);
       let options = [];
@@ -159,10 +158,20 @@ export function bindCellEditor(tableContainer, schema, columns) {
         } else if (e2.key === "Enter") {
           inputEl.blur();
         }
+        if (e2.key === "Tab") {
+          e2.preventDefault();
+          inputEl.blur();
+          document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: e2.shiftKey, bubbles: true }));
+        }
       });
     } else {
       inputEl.addEventListener("keydown", (e2) => {
         if (e2.key === "Enter") inputEl.blur();
+        if (e2.key === "Tab") {
+          e2.preventDefault();
+          inputEl.blur();
+          document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: e2.shiftKey, bubbles: true }));
+        }
       });
     }
 

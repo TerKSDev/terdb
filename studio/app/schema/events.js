@@ -73,6 +73,11 @@ export function bindSchemaCellEditor(tableContainer, columns) {
 
     inputEl.addEventListener("keydown", (e2) => {
       if (e2.key === "Enter") inputEl.blur();
+      if (e2.key === "Tab") {
+        e2.preventDefault();
+        inputEl.blur();
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: e2.shiftKey, bubbles: true }));
+      }
     });
 
     inputEl.focus();
